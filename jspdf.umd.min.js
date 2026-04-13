@@ -1,0 +1,5429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0D1B2A">
+  <meta name="description" content="Contrôle préemballés et détecteur de métaux pour l'agroalimentaire">
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="QualPack">
+  <!-- Manifest -->
+  <link rel="manifest" href="./manifest.json">
+  <!-- Icônes -->
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <!-- Polices locales -->
+  <link rel="stylesheet" href="./fonts.css">
+  <!-- Librairies — local en priorité, CDN en fallback -->
+  <script>
+function loadScript(local, cdn) {
+  const localPaths = Array.isArray(local) ? local : [local];
+  return new Promise((resolve) => {
+    const tryLocal = (index = 0) => {
+      if (index >= localPaths.length) {
+        if (!cdn) { resolve(false); return; }
+        const s = document.createElement('script');
+        s.src = cdn;
+        s.onload = () => resolve(true);
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+        return;
+      }
+      const src = localPaths[index];
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve(true);
+      s.onerror = () => tryLocal(index + 1);
+      document.head.appendChild(s);
+    };
+    tryLocal(0);
+  });
+}
+window._libsReady = Promise.all([
+  loadScript(['./jspdf.umd.min.js', './jspdf.umd.min.js'], 'https://cdnjs.cloudflare.com/ajax/jspdf/2.5.1/jspdf.umd.min.js'),
+  loadScript(['./xlsx.full.min.js', './xlsx.full.min.js'], 'https://cdnjs.cloudflare.com/ajax/xlsx/0.18.5/xlsx.full.min.js')
+]);
+</script>
+  <title>QualPack</title>
+  <style>
+
+/* ============================================================
+   DESIGN SYSTEM — Inspiré Siemens Opcenter / Aveva MES
+   Palette : Bleu marine industrie + Gris anthracite + Accents
+   ============================================================ */
+:root {
+  /* Fond principal dark-industrial */
+  --bg-app:       #0D1B2A;   /* fond global */
+  --bg-card:      #132236;   /* cards */
+  --bg-surface:   #1A2E45;   /* surfaces secondaires */
+  --bg-input:     #0F2033;   /* champs de saisie */
+  --bg-hover:     #1E3550;   /* hover */
+
+  /* Textes */
+  --text-primary:   #E8EDF3;
+  --text-secondary: #7A8FA6;
+  --text-muted:     #4A6278;
+  --text-inverse:   #0D1B2A;
+
+  /* Bordures */
+  --border:       #1F3A55;
+  --border-focus: #2E7DD1;
+
+  /* Accent bleu — action principale */
+  --blue:         #2E7DD1;
+  --blue-light:   #4A9AE8;
+  --blue-dark:    #1A5FA0;
+  --blue-bg:      #0E2D4A;
+
+  /* Conforme — vert industriel */
+  --green:        #1AAB6D;
+  --green-light:  #25C97F;
+  --green-dark:   #0E7A4D;
+  --green-bg:     #082A1C;
+  --green-text:   #5DDBA8;
+
+  /* Alerte — orange */
+  --orange:       #E8891A;
+  --orange-bg:    #2D1E08;
+  --orange-text:  #F5B45A;
+
+  /* Danger — rouge */
+  --red:          #D63B3B;
+  --red-bg:       #2D0E0E;
+  --red-text:     #F07070;
+
+  /* Typographie */
+  --font-ui:   'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Espacements */
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  14px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%; overflow: hidden;
+  font-family: var(--font-ui);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+/* ---- LAYOUT ---- */
+.app {
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+  max-width: 540px; margin: 0 auto;
+  position: relative;
+}
+
+/* ---- HEADER ---- */
+.header {
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px;
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--blue);
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.logo-text {
+  font-size: 16px; font-weight: 600; letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+.logo-text span { color: var(--blue-light); }
+.logo-by {
+  font-size: 16px; font-weight: 600; letter-spacing: -0.3px;
+  color: var(--blue-light);
+  white-space: nowrap;
+}
+.header-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+.status-dot.offline { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+
+/* ---- CONTENT ---- */
+.content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 16px;
+  scroll-behavior: smooth;
+}
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-track { background: transparent; }
+.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ---- BOTTOM NAV ---- */
+.bottom-nav {
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  height: 60px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  cursor: pointer; background: none; border: none;
+  color: var(--text-muted); font-family: var(--font-ui);
+  font-size: 10px; font-weight: 500;
+  transition: color .15s;
+  padding: 8px 0;
+}
+.nav-item.active { color: var(--blue-light); }
+.nav-item svg { width: 22px; height: 22px; }
+
+/* ---- SCREENS ---- */
+.screen { display: none; animation: fadeIn .2s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ---- STEPS ---- */
+.step { display: none; }
+.step.active { display: block; }
+
+/* ---- DASHBOARD ---- */
+.dash-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.dash-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.dash-date { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+.dash-period {
+  display: flex; gap: 6px; margin-bottom: 16px;
+}
+.dp-btn {
+  flex: 1; padding: 7px 0; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--bg-surface);
+  color: var(--text-secondary); font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: var(--font-ui);
+  transition: all .15s;
+}
+.dp-btn.active {
+  background: var(--blue-bg); border-color: var(--blue);
+  color: var(--blue-light);
+}
+
+.kpi-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  margin-bottom: 16px;
+}
+.kpi-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 14px 14px 12px;
+  position: relative; overflow: hidden;
+}
+.kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 3px; height: 100%;
+}
+.kpi-card.blue::before  { background: var(--blue); }
+.kpi-card.green::before { background: var(--green); }
+.kpi-card.orange::before{ background: var(--orange); }
+.kpi-card.red::before   { background: var(--red); }
+.kpi-icon { font-size: 18px; margin-bottom: 6px; }
+.kpi-svg-icon {
+  width: 20px; height: 20px; margin-bottom: 8px;
+  color: var(--text-muted); flex-shrink: 0;
+}
+.kpi-svg-icon svg { width: 20px; height: 20px; display: block; }
+.kpi-trend { margin-top: 5px; }
+
+/* Trend badge */
+.trend {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 700; font-family: var(--font-mono);
+  padding: 2px 6px; border-radius: 20px; white-space: nowrap;
+}
+.trend.good  { background: var(--green-bg);  color: var(--green-text); }
+.trend.bad   { background: var(--red-bg);    color: var(--red-text); }
+.trend.flat  { background: var(--bg-surface);color: var(--text-muted); }
+.trend-arrow { width: 10px; height: 10px; display: inline-block; vertical-align: middle; }
+.kpi-val {
+  font-size: 26px; font-weight: 700; line-height: 1;
+  font-family: var(--font-mono); color: var(--text-primary);
+}
+.kpi-val.green { color: var(--green-text); }
+.kpi-val.orange { color: var(--orange-text); }
+.kpi-val.red { color: var(--red-text); }
+.kpi-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+.dash-section-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .8px;
+  color: var(--text-muted); text-transform: uppercase;
+  margin: 16px 0 8px;
+}
+
+/* Taux de conformité bar */
+.conform-bar-wrap {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 14px; margin-bottom: 10px;
+}
+.cb-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.cb-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.cb-pct { font-size: 20px; font-weight: 700; font-family: var(--font-mono); }
+.cb-pct.green  { color: var(--green-text); }
+.cb-pct.orange { color: var(--orange-text); }
+.cb-pct.red    { color: var(--red-text); }
+.cb-track {
+  height: 8px; background: var(--bg-surface); border-radius: 4px; overflow: hidden;
+}
+.cb-fill {
+  height: 100%; border-radius: 4px;
+  transition: width .5s ease;
+}
+.cb-fill.green  { background: var(--green); }
+.cb-fill.orange { background: var(--orange); }
+.cb-fill.red    { background: var(--red); }
+.cb-sub { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+/* Produits ranking */
+.prod-row {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 12px;
+  display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+}
+.pr-rank { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); width: 20px; }
+.pr-info { flex: 1; }
+.pr-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.pr-meta { font-size: 11px; color: var(--text-muted); }
+.pr-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+.pr-badge.ok     { background: var(--green-bg); color: var(--green-text); }
+.pr-badge.warn   { background: var(--orange-bg); color: var(--orange-text); }
+.pr-badge.err    { background: var(--red-bg); color: var(--red-text); }
+
+/* Alertes */
+.alert-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 6px;
+}
+.alert-item.warn  { border-left: 3px solid var(--orange); }
+.alert-item.err   { border-left: 3px solid var(--red); }
+.alert-item.info  { border-left: 3px solid var(--blue); }
+.alert-dot { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert-svg-icon {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+}
+.alert-svg-icon svg { width: 18px; height: 18px; display: block; }
+.alert-item.warn  .alert-svg-icon { color: var(--orange); }
+.alert-item.err   .alert-svg-icon { color: var(--red); }
+.alert-item.info  .alert-svg-icon { color: var(--green); }
+.alert-body { flex: 1; }
+.alert-title { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+.alert-meta  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Tendance sparkline (canvas-free mini-chart) */
+.sparkline-wrap {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 14px; margin-bottom: 10px;
+}
+.sl-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; }
+.sl-bars {
+  display: flex; align-items: flex-end; gap: 4px; height: 52px;
+}
+.sl-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.sl-bar {
+  width: 100%; border-radius: 3px 3px 0 0; min-height: 3px;
+  transition: height .4s ease;
+}
+.sl-bar.ok     { background: var(--green); }
+.sl-bar.warn   { background: var(--orange); }
+.sl-bar.err    { background: var(--red); }
+.sl-bar.empty  { background: var(--bg-surface); }
+.sl-lbl { font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); }
+
+.kpi-val.small { font-size: 14px; font-weight: 600; padding-top: 4px; }
+
+/* Blocs dashboard */
+.dash-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.dash-block-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.dbh-left { display: flex; align-items: center; gap: 8px; }
+.dbh-icon { font-size: 16px; }
+.dbh-svg-icon { width: 18px; height: 18px; color: var(--blue-light); }
+.dbh-svg-icon svg { width: 18px; height: 18px; display: block; }
+.dbh-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.dbh-sub {
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+  background: var(--bg-surface);
+  padding: 3px 8px; border-radius: 20px;
+}
+.dash-block .kpi-grid { margin-bottom: 12px; }
+.dash-block .conform-bar-wrap { margin-bottom: 8px; }
+.dash-block .conform-bar-wrap:last-child { margin-bottom: 0; }
+  text-align: center; padding: 48px 24px;
+  color: var(--text-muted);
+}
+.empty-dash .ed-icon { font-size: 36px; margin-bottom: 12px; }
+.empty-dash .ed-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.empty-dash .ed-sub { font-size: 12px; line-height: 1.5; }
+
+
+
+/* ---- DASHBOARD V8 ---- */
+.dash-header.v2 { align-items: flex-start; margin-bottom: 12px; }
+.dash-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.dash-toolbar {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 12px; margin-bottom: 12px;
+}
+.dash-filters-grid {
+  display: grid; grid-template-columns: 1fr; gap: 8px; margin: 10px 0 8px;
+}
+.dash-select {
+  width: 100%; padding: 11px 13px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  color: var(--text-primary); font-family: var(--font-ui); font-size: 13px;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A6278' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px;
+}
+.dash-actions-row { display:flex; gap:8px; }
+.btn-mini { margin-top: 0; padding: 10px 12px; font-size: 12px; }
+
+.status-hero {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.03)), var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px; margin-bottom: 12px;
+  position: relative; overflow: hidden;
+}
+.status-hero::before {
+  content:''; position:absolute; left:0; top:0; width:4px; height:100%; background:var(--blue);
+}
+.status-hero.ok::before { background: var(--green); }
+.status-hero.warn::before { background: var(--orange); }
+.status-hero.err::before { background: var(--red); }
+.status-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.status-chip {
+  display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px;
+  font-size:11px; font-weight:700; letter-spacing:.02em;
+}
+.status-chip.ok { background:var(--green-bg); color:var(--green-text); }
+.status-chip.warn { background:var(--orange-bg); color:var(--orange-text); }
+.status-chip.err { background:var(--red-bg); color:var(--red-text); }
+.status-chip.info { background:var(--blue-bg); color:var(--blue-light); }
+.status-title { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.status-main { font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
+.status-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.45; }
+.status-meta-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:12px; }
+.status-meta-card {
+  background: var(--bg-surface); border:1px solid var(--border); border-radius: var(--r-md); padding: 10px;
+}
+.status-meta-label { font-size:10px; text-transform:uppercase; color:var(--text-muted); letter-spacing:.05em; }
+.status-meta-val { font-size:13px; font-weight:700; margin-top:4px; }
+
+.kpi-grid.kpi-grid-4 { grid-template-columns: 1fr 1fr; }
+.dash-two-col { display:grid; grid-template-columns:1fr; gap:12px; }
+.dash-list-card {
+  background: var(--bg-surface); border:1px solid var(--border); border-radius: var(--r-md); padding: 12px;
+}
+.dash-list-title { font-size:12px; font-weight:700; margin-bottom:8px; color:var(--text-secondary); }
+.sync-grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px; }
+.sync-card {
+  background: var(--bg-surface); border:1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px;
+}
+.sync-card.full { grid-column: 1 / -1; }
+.sync-label { font-size:11px; color: var(--text-muted); }
+.sync-value { font-size:16px; font-weight:700; margin-top:4px; }
+.alert-actions { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.alert-btn {
+  border:none; border-radius: 999px; padding:6px 10px; font-size:11px; font-weight:700;
+  cursor:pointer; background:var(--blue-bg); color:var(--blue-light);
+}
+.alert-btn.secondary { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border); }
+.dash-empty-mini { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+@media (min-width: 440px) {
+  .dash-filters-grid { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+/* ---- STEP INDICATOR ---- */
+.step-indicator {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 20px;
+}
+.si-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 500; color: var(--text-muted);
+}
+.si-item.active { color: var(--blue-light); }
+.si-item.done { color: var(--green); }
+.si-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; flex-shrink: 0;
+}
+.si-item.done .si-num { background: var(--green); border-color: var(--green); color: #fff; font-size: 12px; }
+.si-line {
+  flex: 1; height: 1px; background: var(--border); margin: 0 6px;
+}
+
+/* ---- CARDS ---- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.card-icon {
+  width: 36px; height: 36px; border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.card-icon.blue { background: var(--blue-bg); border: 1px solid var(--blue-dark); }
+.card-icon.green { background: var(--green-bg); border: 1px solid var(--green-dark); }
+.card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.card-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ---- FIELDS ---- */
+.field { margin-bottom: 14px; }
+.field label {
+  display: block; font-size: 11px; font-weight: 500;
+  color: var(--text-muted); margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.field select,
+.field input[type="text"],
+.field input[type="number"] {
+  width: 100%; padding: 11px 13px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui); font-size: 14px;
+  appearance: none; -webkit-appearance: none;
+  transition: border-color .15s;
+}
+.field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A6278' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px; }
+.field select:focus,
+.field input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(46,125,209,0.15);
+}
+.field select option { background: var(--bg-surface); }
+
+/* ---- INFO STRIP ---- */
+.info-strip {
+  display: none;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-dark);
+  border-radius: var(--r-md);
+  padding: 10px 13px;
+  margin-bottom: 14px;
+  gap: 0; flex-wrap: wrap;
+}
+.info-strip.show { display: flex; }
+.is-item {
+  flex: 1; min-width: 80px;
+  padding: 2px 8px;
+  border-right: 1px solid var(--blue-dark);
+}
+.is-item:last-child { border-right: none; }
+.is-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.is-val { font-size: 13px; font-weight: 600; color: var(--blue-light); font-family: var(--font-mono); margin-top: 1px; }
+
+/* ---- BUTTONS ---- */
+.btn {
+  width: 100%; padding: 13px 16px;
+  border: none; border-radius: var(--r-md);
+  font-family: var(--font-ui); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+  margin-top: 8px; letter-spacing: 0.01em;
+}
+.btn:active { transform: scale(0.98); }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-blue:hover { background: var(--blue-light); }
+.btn-blue:disabled { background: var(--bg-surface); color: var(--text-muted); cursor: not-allowed; transform: none; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:hover { background: var(--green-light); }
+.btn-green:disabled { background: var(--bg-surface); color: var(--text-muted); cursor: not-allowed; transform: none; }
+.btn-ghost {
+  background: transparent; color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+.btn-ghost:hover { background: var(--bg-hover); }
+.btn-red { background: var(--red); color: #fff; }
+.btn-red:hover { background: #e85555; }
+.btn-row { display: flex; gap: 8px; margin-top: 8px; }
+.btn-row .btn { margin-top: 0; }
+
+/* ---- PROGRESS ---- */
+.prog-wrap {
+  height: 3px; background: var(--bg-surface);
+  border-radius: 2px; margin-bottom: 14px; overflow: hidden;
+}
+.prog-bar {
+  height: 100%; background: var(--blue);
+  border-radius: 2px; transition: width .3s ease;
+}
+.prog-bar.full { background: var(--green); }
+
+/* ---- PESÉES GRID ---- */
+.pesees-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px;
+  margin-bottom: 14px;
+}
+.p-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.p-num {
+  font-size: 10px; color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.p-input {
+  width: 100%; padding: 9px 3px; text-align: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+  transition: border-color .1s, background .1s;
+}
+.p-input:focus { outline: none; border-color: var(--border-focus); }
+.p-input.ok    { border-color: var(--green); background: var(--green-bg); color: var(--green-text); }
+.p-input.warn  { border-color: var(--orange); background: var(--orange-bg); color: var(--orange-text); }
+.p-input.err   { border-color: var(--red); background: var(--red-bg); color: var(--red-text); }
+
+/* ---- STATS GRID ---- */
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-bottom: 14px;
+}
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+}
+.stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.stat-val { font-size: 20px; font-weight: 600; color: var(--text-primary); font-family: var(--font-mono); }
+.stat-val.ok { color: var(--green-text); }
+.stat-val.warn { color: var(--orange-text); }
+.stat-val.err { color: var(--red-text); }
+
+/* ---- VERDICT BANNER ---- */
+.verdict {
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.verdict.ok    { background: var(--green-bg); border: 1px solid var(--green-dark); }
+.verdict.warn  { background: var(--orange-bg); border: 1px solid var(--orange); }
+.verdict.err   { background: var(--red-bg); border: 1px solid var(--red); }
+.verdict-icon { font-size: 28px; flex-shrink: 0; }
+.verdict-title { font-size: 14px; font-weight: 600; }
+.verdict.ok .verdict-title    { color: var(--green-text); }
+.verdict.warn .verdict-title  { color: var(--orange-text); }
+.verdict.err .verdict-title   { color: var(--red-text); }
+.verdict-sub { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+
+/* ---- RECAP TABLE ---- */
+.recap {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden; margin-bottom: 12px;
+}
+.recap-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.recap-row:last-child { border-bottom: none; }
+.rk { color: var(--text-muted); font-size: 12px; }
+.rv { font-weight: 500; color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; }
+.rv.ok   { color: var(--green-text); }
+.rv.warn { color: var(--orange-text); }
+.rv.err  { color: var(--red-text); }
+
+/* ---- DÉTECTEUR ---- */
+.det-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  margin-bottom: 16px;
+}
+.det-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px 8px; text-align: center;
+  cursor: pointer; transition: all .15s;
+}
+.det-card:hover { background: var(--bg-hover); }
+.det-card.pass {
+  background: var(--green-bg);
+  border-color: var(--green);
+}
+.det-card.fail {
+  background: var(--red-bg);
+  border-color: var(--red);
+}
+.det-card-icon { font-size: 24px; margin-bottom: 6px; }
+.det-card-name { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.det-card-status { font-size: 12px; margin-top: 5px; font-family: var(--font-mono); font-weight: 500; color: var(--text-muted); }
+.det-card.pass .det-card-status { color: var(--green-text); }
+.det-card.fail .det-card-status { color: var(--red-text); }
+
+.det-instruction {
+  font-size: 12px; color: var(--text-secondary);
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 12px;
+  margin-bottom: 14px; line-height: 1.6;
+}
+
+/* ---- HISTORIQUE ---- */
+.hist-filter {
+  display: flex; gap: 6px; margin-bottom: 14px;
+}
+.hf-btn {
+  flex: 1; padding: 9px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text-muted); font-family: var(--font-ui);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: all .15s;
+}
+.hf-btn.active {
+  background: var(--blue-bg);
+  border-color: var(--blue);
+  color: var(--blue-light);
+}
+
+.hist-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 10px;
+}
+.hi-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.hi-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-family: var(--font-mono); }
+.badge {
+  flex-shrink: 0;
+  display: inline-block; font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.badge.ok   { background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-dark); }
+.badge.warn { background: var(--orange-bg); color: var(--orange-text); border: 1px solid var(--orange); }
+.badge.err  { background: var(--red-bg); color: var(--red-text); border: 1px solid var(--red); }
+
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text-muted); font-size: 13px;
+}
+.empty-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.5; }
+
+
+.sync-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  letter-spacing: 0.02em;
+}
+
+.sync-badge.pending {
+  background: var(--orange-bg);
+  color: var(--orange-text);
+  border-color: var(--orange);
+}
+
+.sync-badge.synced {
+  background: var(--green-bg);
+  color: var(--green-text);
+  border-color: var(--green-dark);
+}
+
+.sync-badge.error {
+  background: var(--red-bg);
+  color: var(--red-text);
+  border-color: var(--red);
+}
+
+.sync-badge.idle {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+
+/* ---- SECTION TITLES ---- */
+.section-title {
+  font-size: 10px; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- DIVIDER ---- */
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+
+#inp-op-nom{
+  color:#E8EDF3 !important;
+  caret-color:#E8EDF3 !important;
+  -webkit-text-fill-color:#E8EDF3 !important;
+}
+#inp-op-nom::placeholder{
+  color:#7A8FA6 !important;
+  opacity:1;
+}
+
+
+#inp-op-nom,
+#inp-op-nom:focus,
+#inp-op-nom:active,
+#inp-op-nom:hover{
+  color:#E8EDF3 !important;
+  -webkit-text-fill-color:#E8EDF3 !important;
+  caret-color:#E8EDF3 !important;
+  background:#0F2033 !important;
+  opacity:1 !important;
+  text-shadow:0 0 0 #E8EDF3 !important;
+}
+
+#inp-op-nom::placeholder{
+  color:#7A8FA6 !important;
+  opacity:1 !important;
+}
+
+/* ---- TOAST ---- */
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--bg-surface); border: 1px solid var(--border);
+  color: var(--text-primary); font-size: 13px; font-weight: 500;
+  padding: 10px 20px; border-radius: 30px;
+  opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap;
+  z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok   { background: var(--green-bg); border-color: var(--green); color: var(--green-text); }
+.toast.err  { background: var(--red-bg); border-color: var(--red); color: var(--red-text); }
+
+/* ---- INSTALL BANNER ---- */
+.install-banner {
+  display: none;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-dark);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  align-items: center; gap: 12px;
+}
+.install-banner.show { display: flex; }
+.ib-text { flex: 1; font-size: 12px; color: var(--text-secondary); }
+.ib-text strong { color: var(--blue-light); display: block; margin-bottom: 2px; }
+.ib-btn {
+  background: var(--blue); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  padding: 7px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+
+/* ================================================================
+   ADMIN — PIN + ÉCRAN ADMINISTRATION
+   ================================================================ */
+
+/* Overlay PIN */
+.pin-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg-app);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+  animation: fadeIn .2s ease;
+}
+.pin-overlay.hidden { display: none; }
+
+.pin-logo {
+  font-size: 32px; margin-bottom: 8px;
+}
+.pin-title {
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.pin-subtitle {
+  font-size: 13px; color: var(--text-muted); margin-bottom: 32px;
+  text-align: center;
+}
+
+/* Affichage des points PIN */
+.pin-dots {
+  display: flex; gap: 16px; margin-bottom: 32px;
+}
+.pin-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  transition: all .15s;
+}
+.pin-dot.filled {
+  background: var(--blue);
+  border-color: var(--blue);
+  box-shadow: 0 0 8px var(--blue);
+}
+.pin-dot.error {
+  background: var(--red);
+  border-color: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+
+/* Clavier numérique */
+.pin-keypad {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; width: 100%; max-width: 280px;
+}
+.pin-key {
+  height: 64px; border-radius: var(--r-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-primary); font-size: 22px; font-weight: 600;
+  font-family: var(--font-mono); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .1s; -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.pin-key:active { background: var(--bg-hover); border-color: var(--blue); transform: scale(.95); }
+.pin-key.del { font-size: 18px; color: var(--text-muted); }
+.pin-key.empty { background: transparent; border-color: transparent; cursor: default; }
+
+.pin-error-msg {
+  font-size: 12px; color: var(--red-text);
+  margin-top: 16px; min-height: 18px; text-align: center;
+}
+.pin-cancel {
+  margin-top: 20px; font-size: 13px; color: var(--text-muted);
+  background: none; border: none; cursor: pointer; font-family: var(--font-ui);
+  padding: 8px 16px;
+}
+.pin-cancel:active { color: var(--text-primary); }
+
+/* Écran admin */
+.admin-section {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 16px; margin-bottom: 12px;
+}
+.admin-section-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .8px;
+  color: var(--text-muted); text-transform: uppercase; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.admin-section-title svg { width: 14px; height: 14px; }
+
+.admin-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.admin-row:last-child { border-bottom: none; padding-bottom: 0; }
+.admin-row-label { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+.admin-row-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Change PIN form */
+.pin-change-form {
+  margin-top: 12px; display: none;
+}
+.pin-change-form.open { display: block; }
+.pin-input-row {
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
+}
+.pin-input-field {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 10px 14px;
+  color: var(--text-primary); font-size: 18px; font-family: var(--font-mono);
+  letter-spacing: 6px; text-align: center; width: 100%;
+  -webkit-text-security: disc;
+}
+.pin-input-field:focus { outline: none; border-color: var(--border-focus); }
+
+/* Info cards */
+.admin-info-card {
+  background: var(--blue-bg); border: 1px solid var(--blue-dark);
+  border-radius: var(--r-md); padding: 12px 14px;
+  font-size: 12px; color: var(--text-secondary); line-height: 1.6;
+  margin-bottom: 10px;
+}
+.admin-info-card strong { color: var(--blue-light); }
+
+.admin-coming-soon {
+  text-align: center; padding: 20px;
+  color: var(--text-muted); font-size: 12px; line-height: 1.6;
+}
+.admin-coming-icon { font-size: 28px; margin-bottom: 8px; }
+
+/* Badge version */
+.admin-version-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);
+}
+
+
+</style>
+<script src="./jspdf.umd.min.js"></script>
+<script src="./xlsx.full.min.js"></script>
+<script src="./db.js"></script>
+<script src="./sync.js"></script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">⚖</div>
+      <div class="logo-text">Qual<span>Pack</span></div>
+      <div class="logo-by">by CODEX EXPERTISE</div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-label">En ligne</span>
+    </div>
+  </div>
+
+  <!-- CONTENU -->
+  <div class="content" id="main-content">
+
+    <!-- ==================== PESÉES ==================== -->
+    <div class="screen active" id="screen-pesees">
+
+      <!-- ÉTAPE 1 : Identification -->
+      <div class="step active" id="ps1">
+
+        <div class="install-banner" id="install-banner">
+          <div class="ib-text">
+            <strong>Installer QualPack</strong>
+            Ajoutez l'app sur votre tablette pour l'utiliser hors-ligne
+          </div>
+          <button class="ib-btn" onclick="installApp()">Installer</button>
+        </div>
+
+        <div class="step-indicator">
+          <div class="si-item active" id="si1-1"><div class="si-num">1</div><span>Identif.</span></div>
+          <div class="si-line"></div>
+          <div class="si-item" id="si1-2"><div class="si-num">2</div><span>Pesées</span></div>
+          <div class="si-line"></div>
+          <div class="si-item" id="si1-3"><div class="si-num">3</div><span>Résultats</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">📋</div>
+            <div>
+              <div class="card-title">Identification du contrôle</div>
+              <div class="card-sub">Sélectionnez le client, produit et OF</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Client</label>
+            <select id="sel-client" onchange="onClient()">
+              <option value="">— Sélectionner un client —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Produit</label>
+            <select id="sel-produit" disabled onchange="onProduit()">
+              <option value="">— Sélectionner d'abord un client —</option>
+            </select>
+          </div>
+
+          <div class="info-strip" id="prod-info">
+            <div class="is-item"><div class="is-label">Qn</div><div class="is-val" id="ip-qn">—</div></div>
+            <div class="is-item"><div class="is-label">TU1</div><div class="is-val" id="ip-tu1">—</div></div>
+            <div class="is-item"><div class="is-label">TU2</div><div class="is-val" id="ip-tu2">—</div></div>
+            <div class="is-item"><div class="is-label">TNE</div><div class="is-val" id="ip-tne">—</div></div>
+          </div>
+
+          <div class="field" id="field-ligne">
+            <label>Ligne de production <span style="color:var(--text-muted);font-weight:400">(optionnel)</span></label>
+            <select id="inp-ligne" onchange="chk1()">
+              <option value="">— Sélectionner une ligne —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Opérateur</label>
+            <select id="sel-op" onchange="chk1()">
+              <option value="">— Sélectionner un opérateur —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>N° Ordre de fabrication</label>
+            <div id="of-container">
+              <select id="sel-of" style="display:none" onchange="onOfSelect()">
+                <option value="">— Sélectionner un OF —</option>
+              </select>
+              <input type="text" id="inp-of" placeholder="ex : OF 123" oninput="chk1()" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Quantité prévue <span style="color:var(--text-muted);font-weight:400">(optionnel)</span></label>
+            <input type="number" id="inp-qte" placeholder="ex : 800" min="1" oninput="chk1()" autocomplete="off" inputmode="numeric"/>
+          </div>
+
+          <button class="btn btn-blue" id="btn-ps1" onclick="goPS2()" disabled>
+            Démarrer les pesées →
+          </button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 2 : Pesées -->
+      <div class="step" id="ps2">
+        <div class="step-indicator">
+          <div class="si-item done" id="si2-1"><div class="si-num">✓</div><span>Identif.</span></div>
+          <div class="si-line"></div>
+          <div class="si-item active" id="si2-2"><div class="si-num">2</div><span>Pesées</span></div>
+          <div class="si-line"></div>
+          <div class="si-item" id="si2-3"><div class="si-num">3</div><span>Résultats</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">⚖</div>
+            <div>
+              <div class="card-title">20 pesées</div>
+              <div class="card-sub" id="ps2-sub">—</div>
+            </div>
+          </div>
+
+          <div class="prog-wrap">
+            <div class="prog-bar" id="prog-bar" style="width:0%"></div>
+          </div>
+
+          <div class="pesees-grid" id="pesees-grid"></div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Pesées saisies</div>
+              <div class="stat-val" id="sc-n">0 / 20</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Moyenne (g)</div>
+              <div class="stat-val" id="sc-moy">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Défauts TU1</div>
+              <div class="stat-val" id="sc-tu1">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Défauts TU2</div>
+              <div class="stat-val" id="sc-tu2">0</div>
+            </div>
+          </div>
+
+          <button class="btn btn-blue" id="btn-ps2" onclick="goPS3()" disabled>
+            Calculer les résultats →
+          </button>
+          <button class="btn btn-ghost" onclick="goPS1back()">← Modifier l'identification</button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 3 : Résultats -->
+      <div class="step" id="ps3">
+        <div class="step-indicator">
+          <div class="si-item done"><div class="si-num">✓</div><span>Identif.</span></div>
+          <div class="si-line"></div>
+          <div class="si-item done"><div class="si-num">✓</div><span>Pesées</span></div>
+          <div class="si-line"></div>
+          <div class="si-item active"><div class="si-num">3</div><span>Résultats</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon green">📊</div>
+            <div>
+              <div class="card-title">Résultats du contrôle</div>
+              <div class="card-sub" id="ps3-sub">—</div>
+            </div>
+          </div>
+
+          <div class="verdict" id="verdict-pesee">
+            <div class="verdict-icon" id="verd-icon">—</div>
+            <div>
+              <div class="verdict-title" id="verd-title">—</div>
+              <div class="verdict-sub" id="verd-sub">—</div>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Moyenne</div>
+              <div class="stat-val" id="r-moy">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Écart-type</div>
+              <div class="stat-val" id="r-et">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Défauts TU1</div>
+              <div class="stat-val" id="r-tu1">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Défauts TU2</div>
+              <div class="stat-val" id="r-tu2">0</div>
+            </div>
+          </div>
+
+          <div class="section-title">Récapitulatif</div>
+
+          <div class="recap">
+            <div class="recap-row"><span class="rk">Client</span><span class="rv" id="rc-cli">—</span></div>
+            <div class="recap-row"><span class="rk">Produit</span><span class="rv" id="rc-prod">—</span></div>
+            <div class="recap-row"><span class="rk">Ligne</span><span class="rv" id="rc-ligne">—</span></div>
+            <div class="recap-row"><span class="rk">N° OF</span><span class="rv" id="rc-of">—</span></div>
+            <div class="recap-row"><span class="rk">Opérateur</span><span class="rv" id="rc-op">—</span></div>
+            <div class="recap-row"><span class="rk">Date / heure</span><span class="rv" id="rc-date">—</span></div>
+            <div class="recap-row"><span class="rk">Verdict moyenne</span><span class="rv" id="rc-vm">—</span></div>
+            <div class="recap-row"><span class="rk">Verdict défectueux</span><span class="rv" id="rc-vd">—</span></div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-red" onclick="genPDF()" style="flex:1">📄 PDF</button>
+            <button class="btn btn-green" onclick="genExcelPesee()" style="flex:1">📊 Excel</button>
+            <button class="btn btn-blue" onclick="saveSession()" style="flex:1">💾 Enregistrer</button>
+          </div>
+          <button class="btn btn-ghost" onclick="newPesee()">+ Nouvelle saisie</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== DÉTECTEUR ==================== -->
+    <div class="screen" id="screen-detecteur">
+
+      <!-- DS1 : Identification -->
+      <div class="step active" id="ds1">
+        <div class="step-indicator">
+          <div class="si-item active"><div class="si-num">1</div><span>Identif.</span></div>
+          <div class="si-line"></div>
+          <div class="si-item"><div class="si-num">2</div><span>Test</span></div>
+          <div class="si-line"></div>
+          <div class="si-item"><div class="si-num">3</div><span>Résultat</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">🔍</div>
+            <div>
+              <div class="card-title">Test détecteur de métaux</div>
+              <div class="card-sub">Identification de l'équipement</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Équipement</label>
+            <select id="d-equip" onchange="onDetecteurEquipChange()">
+              <option value="">— Sélectionner un détecteur —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Ligne de production <span style="color:var(--text-muted);font-weight:400">(optionnel)</span></label>
+            <select id="d-ligne" onchange="onDetecteurLigneChange()">
+              <option value="">— Sélectionner une ligne —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Opérateur</label>
+            <select id="d-op" onchange="chkD1()">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>N° OF (optionnel)</label>
+            <input type="text" id="d-of" placeholder="ex : OF 123" autocomplete="off"/>
+          </div>
+
+          <div class="field">
+            <label>Moment du test</label>
+            <select id="d-type" onchange="chkD1()">
+              <option value="">— Sélectionner —</option>
+              <option>Avant production</option>
+              <option>Pendant production</option>
+              <option>Après production</option>
+            </select>
+          </div>
+
+          <button class="btn btn-blue" id="btn-ds1" onclick="goDS2()" disabled>
+            Démarrer le test →
+          </button>
+        </div>
+      </div>
+
+      <!-- DS2 : Test -->
+      <div class="step" id="ds2">
+        <div class="step-indicator">
+          <div class="si-item done"><div class="si-num">✓</div><span>Identif.</span></div>
+          <div class="si-line"></div>
+          <div class="si-item active"><div class="si-num">2</div><span>Test</span></div>
+          <div class="si-line"></div>
+          <div class="si-item"><div class="si-num">3</div><span>Résultat</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon blue">🔍</div>
+            <div>
+              <div class="card-title">Test des étalons</div>
+              <div class="card-sub" id="ds2-sub">—</div>
+            </div>
+          </div>
+
+          <div class="det-instruction">
+            Passez chaque étalon test dans le détecteur.<br>
+            Appuyez sur la carte correspondante selon le résultat.
+          </div>
+
+          <div class="det-grid">
+            <div class="det-card" id="dc-fer" onclick="toggleDet('fer')">
+              <div class="det-card-icon">🔴</div>
+              <div class="det-card-name">Ferreux</div>
+              <div class="det-card-status" id="ds-fer">— Non testé</div>
+            </div>
+            <div class="det-card" id="dc-nfer" onclick="toggleDet('nfer')">
+              <div class="det-card-icon">🟡</div>
+              <div class="det-card-name">Non ferreux</div>
+              <div class="det-card-status" id="ds-nfer">— Non testé</div>
+            </div>
+            <div class="det-card" id="dc-inox" onclick="toggleDet('inox')">
+              <div class="det-card-icon">⚪</div>
+              <div class="det-card-name">Inox</div>
+              <div class="det-card-status" id="ds-inox">— Non testé</div>
+            </div>
+          </div>
+
+          <button class="btn btn-blue" id="btn-ds2" onclick="goDS3()" disabled>
+            Valider le test →
+          </button>
+          <button class="btn btn-ghost" onclick="goDS1back()">← Modifier</button>
+        </div>
+      </div>
+
+      <!-- DS3 : Résultat -->
+      <div class="step" id="ds3">
+        <div class="step-indicator">
+          <div class="si-item done"><div class="si-num">✓</div><span>Identif.</span></div>
+          <div class="si-line"></div>
+          <div class="si-item done"><div class="si-num">✓</div><span>Test</span></div>
+          <div class="si-line"></div>
+          <div class="si-item active"><div class="si-num">3</div><span>Résultat</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon green">✅</div>
+            <div>
+              <div class="card-title">Résultat du test</div>
+              <div class="card-sub" id="ds3-sub">—</div>
+            </div>
+          </div>
+
+          <div class="verdict" id="verdict-det">
+            <div class="verdict-icon" id="d-verd-icon">—</div>
+            <div>
+              <div class="verdict-title" id="d-verd-title">—</div>
+              <div class="verdict-sub" id="d-verd-sub">—</div>
+            </div>
+          </div>
+
+          <div class="recap">
+            <div class="recap-row"><span class="rk">Équipement</span><span class="rv" id="dr-eq">—</span></div>
+            <div class="recap-row"><span class="rk">Ligne</span><span class="rv" id="dr-ligne">—</span></div>
+            <div class="recap-row"><span class="rk">Opérateur</span><span class="rv" id="dr-op">—</span></div>
+            <div class="recap-row"><span class="rk">N° OF</span><span class="rv" id="dr-of">—</span></div>
+            <div class="recap-row"><span class="rk">Moment du test</span><span class="rv" id="dr-type">—</span></div>
+            <div class="recap-row"><span class="rk">Date / heure</span><span class="rv" id="dr-date">—</span></div>
+            <div class="recap-row"><span class="rk">Ferreux</span><span class="rv" id="dr-fer">—</span></div>
+            <div class="recap-row"><span class="rk">Non ferreux</span><span class="rv" id="dr-nfer">—</span></div>
+            <div class="recap-row"><span class="rk">Inox</span><span class="rv" id="dr-inox">—</span></div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-red" onclick="genPDFdet()" style="flex:1">📄 PDF</button>
+            <button class="btn btn-green" onclick="genExcelDet()" style="flex:1">📊 Excel</button>
+            <button class="btn btn-blue" onclick="saveDet()" style="flex:1">💾 Enregistrer</button>
+          </div>
+          <button class="btn btn-ghost" onclick="newDet()">+ Nouveau test</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== HISTORIQUE ==================== -->
+    <div class="screen" id="screen-historique">
+      <div class="hist-filter">
+        <button class="hf-btn active" id="hf-p" onclick="filterHist('pesees')">⚖ Pesées</button>
+        <button class="hf-btn" id="hf-d" onclick="filterHist('det')">🔍 Détecteur</button>
+        <button class="hf-btn" onclick="genExcel()" style="flex:0.8;color:var(--green-text);border-color:var(--green-dark);">📊 Excel</button>
+        <button class="hf-btn" id="btn-sync-history" onclick="manualSync()" style="flex:1;color:var(--blue-light);border-color:var(--blue-dark);">🔄 Synchroniser</button>
+      </div>
+      <div id="hist-list"></div>
+    </div>
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <div class="screen" id="screen-dashboard">
+      <div class="dash-header v2">
+        <div>
+          <div class="dash-title">Dashboard qualité</div>
+          <div class="dash-subtitle">Pilotage responsable qualité</div>
+        </div>
+        <div class="dash-date" id="dash-date"></div>
+      </div>
+
+      <div class="dash-toolbar">
+        <div class="dash-period">
+          <button class="dp-btn active" id="dp-7"  onclick="setDashPeriod(7,  this)">7 j</button>
+          <button class="dp-btn"        id="dp-30" onclick="setDashPeriod(30, this)">30 j</button>
+          <button class="dp-btn"        id="dp-90" onclick="setDashPeriod(90, this)">90 j</button>
+          <button class="dp-btn"        id="dp-0"  onclick="setDashPeriod(0,  this)">Tout</button>
+        </div>
+        <div class="dash-filters-grid">
+          <select id="dash-filter-client" class="dash-select" onchange="setDashFilter('client', this.value)">
+            <option value="">Tous les clients</option>
+          </select>
+          <select id="dash-filter-product" class="dash-select" onchange="setDashFilter('product', this.value)">
+            <option value="">Tous les produits</option>
+          </select>
+          <select id="dash-filter-status" class="dash-select" onchange="setDashFilter('status', this.value)">
+            <option value="all">Tous statuts</option>
+            <option value="ok">Conformes</option>
+            <option value="warn">À surveiller</option>
+            <option value="err">Critiques</option>
+          </select>
+        </div>
+        <div class="dash-actions-row">
+          <button class="btn btn-ghost btn-mini" onclick="resetDashFilters()">Réinitialiser</button>
+          <button class="btn btn-blue btn-mini" onclick="generatePDFV2()">Générer Rapport PDF</button>
+        </div>
+      </div>
+
+      <div id="dash-body"></div>
+    </div>
+
+
+    <!-- ==================== ADMIN ==================== -->
+    <div class="screen" id="screen-admin">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary)">Administration</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Accès responsable qualité</div>
+        </div>
+        <span class="admin-version-badge">v13</span>
+      </div>
+
+      <!-- Sécurité / PIN -->
+      <div class="admin-section">
+        <div class="admin-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+          Sécurité
+        </div>
+
+        <div class="admin-row">
+          <div>
+            <div class="admin-row-label">Code PIN d'accès</div>
+            <div class="admin-row-sub">4 chiffres — requis à chaque ouverture de l'Admin</div>
+          </div>
+          <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px"
+            onclick="togglePinChangeForm()">Modifier</button>
+        </div>
+
+        <div class="pin-change-form" id="pin-change-form">
+          <div class="pin-input-row">
+            <input class="pin-input-field" type="tel" inputmode="numeric"
+              maxlength="4" placeholder="••••" id="pin-current"
+              autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'')">
+            <div style="font-size:11px;color:var(--text-muted);text-align:center">PIN actuel</div>
+            <input class="pin-input-field" type="tel" inputmode="numeric"
+              maxlength="4" placeholder="••••" id="pin-new1"
+              autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'')">
+            <div style="font-size:11px;color:var(--text-muted);text-align:center">Nouveau PIN</div>
+            <input class="pin-input-field" type="tel" inputmode="numeric"
+              maxlength="4" placeholder="••••" id="pin-new2"
+              autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'')">
+            <div style="font-size:11px;color:var(--text-muted);text-align:center">Confirmer le nouveau PIN</div>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="saveNewPin()">
+            Enregistrer le nouveau PIN
+          </button>
+          <div id="pin-change-error" style="font-size:12px;color:var(--red-text);text-align:center;margin-top:8px;min-height:18px"></div>
+        </div>
+      </div>
+
+      <!-- Gestion clients & produits V12 -->
+      <div class="admin-section">
+        <div class="admin-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+          </svg>
+          Clients &amp; Produits
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="btn btn-secondary" style="flex:1;font-size:12px" onclick="downloadTemplate()">
+            ⬇ Template Excel
+          </button>
+          <label class="btn btn-primary" style="flex:1;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+            ⬆ Importer Excel
+            <input type="file" id="file-import-produits" accept=".xlsx,.xls,.csv"
+              style="display:none" onchange="importProduitsExcel(this)">
+          </label>
+        </div>
+
+        <div id="import-preview" style="display:none;background:var(--bg-surface);border:1px solid var(--border);
+          border-radius:var(--r-md);padding:12px;margin-bottom:12px;font-size:12px"></div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;
+          letter-spacing:.6px;margin-bottom:8px">Catalogue actuel</div>
+        <div id="admin-catalogue-list">
+          <div style="color:var(--text-muted);font-size:12px;padding:8px">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Gestion opérateurs V12 -->
+      <div class="admin-section">
+        <div class="admin-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+          Opérateurs
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Nom</div>
+            <input type="text" id="inp-op-nom" placeholder="Prénom NOM"
+              style="width:140px;min-width:140px;background:#0F2033 !important;border:1px solid var(--border);
+              border-radius:var(--r-sm);padding:8px 12px;color:#E8EDF3 !important;
+              font-size:13px;font-family:var(--font-ui);caret-color:#E8EDF3 !important;-webkit-text-fill-color:#E8EDF3 !important"
+              autocomplete="off" spellcheck="false"/>
+          </div>
+          <div style="flex:0.8">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Rôle</div>
+            <select id="sel-op-role"
+              style="width:100%;background:var(--bg-input);border:1px solid var(--border);
+              border-radius:var(--r-sm);padding:8px 10px;color:var(--text-primary);
+              font-size:13px;font-family:var(--font-ui)">
+              <option value="Operateur">Opérateur</option>
+              <option value="Responsable">Responsable</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" style="padding:8px 14px;font-size:12px;white-space:nowrap"
+            onclick="addOperateur()">+ Ajouter</button>
+        </div>
+
+        <div id="admin-op-list">
+          <div style="color:var(--text-muted);font-size:12px;padding:8px">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Infos app -->
+      <div class="admin-section">
+        <div class="admin-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Informations
+        </div>
+        <div class="admin-row">
+          <div><div class="admin-row-label">Application</div></div>
+          <div style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono)">QualPack v13</div>
+        </div>
+        <div class="admin-row">
+          <div><div class="admin-row-label">Développé par</div></div>
+          <div style="font-size:12px;color:var(--blue-light);font-weight:600">CODEX Expertise</div>
+        </div>
+        <div class="admin-row">
+          <div><div class="admin-row-label">Réinitialiser le PIN</div>
+            <div class="admin-row-sub">Revenir au PIN par défaut (1234)</div>
+          </div>
+          <button class="btn btn-red" style="font-size:12px;padding:6px 12px"
+            onclick="resetPinToDefault()">Reset</button>
+        </div>
+      </div>
+
+      <div style="height:16px"></div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-pesees" onclick="showScreen('pesees', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M12 3L4 9v12h5v-6h6v6h5V9z"/>
+      </svg>
+      Pesées
+    </button>
+    <button class="nav-item" id="nav-detecteur" onclick="showScreen('detecteur', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      Détecteur
+    </button>
+    <button class="nav-item" id="nav-historique" onclick="showScreen('historique', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>
+      </svg>
+      Historique
+    </button>
+    <button class="nav-item" id="nav-dashboard" onclick="showScreen('dashboard', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      Dashboard
+    </button>
+    <button class="nav-item" id="nav-admin" onclick="openAdmin(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/>
+        <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
+      </svg>
+      Admin
+    </button>
+  </nav>
+
+
+<!-- OVERLAY PIN ADMIN -->
+<div class="pin-overlay hidden" id="pin-overlay">
+  <div class="pin-logo">🔐</div>
+  <div class="pin-title">Accès Administration</div>
+  <div class="pin-subtitle">Entrez votre code PIN responsable qualité</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-keypad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key empty"></button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key del" onclick="pinDel()">⌫</button>
+  </div>
+  <div class="pin-error-msg" id="pin-error-msg"></div>
+  <button class="pin-cancel" onclick="pinCancel()">Annuler</button>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+async function renderHist() {
+  const list = document.getElementById('hist-list');
+  if (!list) return;
+
+  const safeDateValue = (item) => {
+    const value = item && (item.createdAt || item.date);
+    const t = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(t) ? t : 0;
+  };
+
+  const getSyncMeta = (item) => {
+    const status = item?.syncStatus || (item?.synced === true ? 'synced' : item?.synced === false ? 'pending' : 'idle');
+    if (status === 'synced') return { cls: 'synced', label: 'Synchronisé' };
+    if (status === 'error') return { cls: 'error', label: 'Erreur synchro' };
+    if (status === 'pending') return { cls: 'pending', label: 'À synchroniser' };
+    return { cls: 'idle', label: 'Statut local' };
+  };
+
+  try {
+    if (histFilter === 'pesees') {
+      const sessionsRaw = await getAllPesees();
+      const sessions = Array.isArray(sessionsRaw) ? sessionsRaw : [];
+
+      if (!sessions.length) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚖</div>Aucun relevé de pesée enregistré</div>';
+        return;
+      }
+
+      sessions.sort((a, b) => safeDateValue(b) - safeDateValue(a));
+
+      list.innerHTML = sessions.map(s => {
+        const prod = s.prod || 'Produit';
+        const of = s.of || '—';
+        const controlId = s.controlId || s.id || '—';
+        const op = s.op || '—';
+        const date = s.date || '—';
+        const moy = (s.moy !== undefined && s.moy !== null && s.moy !== '') ? s.moy : '—';
+        const vf = s.vF || 'warn';
+        const verdictLabel = vf === 'ok' ? 'Conforme' : (vf === 'warn' ? 'À vérifier' : 'Non conforme');
+        const syncMeta = getSyncMeta(s);
+
+        return `
+          <div class="hist-item">
+            <div>
+              <div class="hi-title">${prod}  ·  ${of}</div>
+              <div class="hi-meta">${controlId}  ·  ${op}  ·  ${date}  ·  moy. ${moy} g</div>
+              <div class="sync-badge ${syncMeta.cls}">${syncMeta.label}</div>
+            </div>
+            <span class="badge ${vf}">${verdictLabel}</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      const detsRaw = await getAllDetecteurs();
+      const dets = Array.isArray(detsRaw) ? detsRaw : [];
+
+      if (!dets.length) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>Aucun test détecteur enregistré</div>';
+        return;
+      }
+
+      dets.sort((a, b) => safeDateValue(b) - safeDateValue(a));
+
+      list.innerHTML = dets.map(d => {
+        const eq = d.eq || 'Détecteur';
+        const testType = d.testType || d.type || 'Test';
+        const controlId = d.controlId || d.id || '—';
+        const op = d.op || '—';
+        const date = d.date || '—';
+        const vf = d.vF || 'warn';
+        const verdictLabel = vf === 'ok' ? 'Conforme' : 'Non conforme';
+        const syncMeta = getSyncMeta(d);
+
+        return `
+          <div class="hist-item">
+            <div>
+              <div class="hi-title">${eq}  ·  ${testType}</div>
+              <div class="hi-meta">${controlId}  ·  ${op}  ·  ${date}</div>
+              <div class="sync-badge ${syncMeta.cls}">${syncMeta.label}</div>
+            </div>
+            <span class="badge ${vf}">${verdictLabel}</span>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (error) {
+    console.error('Erreur renderHist:', error);
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>Erreur de lecture de l’historique</div>';
+  }
+}
+
+function reinforceOperateurInputVisibility() {
+  const input = document.getElementById('inp-op-nom');
+  if (!input) return;
+  const forceStyle = () => {
+    input.style.width = '140px';
+    input.style.minWidth = '140px';
+    input.style.color = '#E8EDF3';
+    input.style.webkitTextFillColor = '#E8EDF3';
+    input.style.caretColor = '#E8EDF3';
+    input.style.opacity = '1';
+    input.style.background = '#0F2033';
+    input.style.textShadow = '0 0 0 #E8EDF3';
+  };
+  ['focus', 'input', 'keyup', 'change', 'blur', 'click'].forEach(evt => input.addEventListener(evt, forceStyle));
+  forceStyle();
+}
+
+
+/* ================================================================
+   DONNÉES
+   ================================================================ */
+/* Catalogue chargé depuis Supabase / IndexedDB (remplace PRODS hardcodé) */
+let CATALOGUE = {};   // { "CLIENT": [{id, nom, qn, tu1, tu2, tne, ligne_prod, of_planifies}] }
+let OPERATEURS = [];  // [{id, nom, role}]
+
+function normalizeTextKey(v) {
+  return String(v || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function dedupeProductsList(products) {
+  const map = new Map();
+  (products || []).forEach(p => {
+    if (!p) return;
+    const key = normalizeTextKey(p.nom);
+    if (!key) return;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, { ...p });
+      return;
+    }
+    map.set(key, {
+      ...prev,
+      ...p,
+      id: prev.id || p.id,
+      nom: prev.nom || p.nom,
+      qn: p.qn ?? prev.qn,
+      tu1: p.tu1 ?? prev.tu1,
+      tu2: p.tu2 ?? prev.tu2,
+      tne: p.tne ?? prev.tne,
+      ligne_prod: prev.ligne_prod || p.ligne_prod || '',
+      detecteur: prev.detecteur || p.detecteur || '',
+      of_planifies: prev.of_planifies || p.of_planifies || ''
+    });
+  });
+  return Array.from(map.values()).sort((a,b) => String(a.nom||'').localeCompare(String(b.nom||''), 'fr', { sensitivity:'base' }));
+}
+
+function sanitizeCatalogue(rawCatalogue) {
+  const clean = {};
+  Object.entries(rawCatalogue || {}).forEach(([client, products]) => {
+    const clientName = String(client || '').trim();
+    if (!clientName) return;
+    clean[clientName] = dedupeProductsList(products || []);
+  });
+  return clean;
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+
+const LINE_DETECTEUR_STORAGE_KEY = 'qp_line_detecteurs';
+const LINE_CATALOGUE_STORAGE_KEY = 'qp_lines_catalogue';
+const DETECTEUR_CATALOGUE_STORAGE_KEY = 'qp_detecteurs_catalogue';
+let detecteurManualOverride = false;
+let detecteurAutoFilledValue = '';
+
+function getStoredLineCatalogue() {
+  try {
+    const raw = localStorage.getItem(LINE_CATALOGUE_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch (e) {
+    console.warn('getStoredLineCatalogue error:', e);
+    return [];
+  }
+}
+
+function saveStoredLineCatalogue(lines) {
+  try {
+    const cleaned = Array.from(new Set((lines || []).map(v => String(v || '').trim()).filter(Boolean)))
+      .sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
+    localStorage.setItem(LINE_CATALOGUE_STORAGE_KEY, JSON.stringify(cleaned));
+    return cleaned;
+  } catch (e) {
+    console.warn('saveStoredLineCatalogue error:', e);
+    return [];
+  }
+}
+
+function mergeStoredLineCatalogue(lines) {
+  const merged = Array.from(new Set([
+    ...getStoredLineCatalogue(),
+    ...((lines || []).map(v => String(v || '').trim()).filter(Boolean))
+  ])).sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
+  saveStoredLineCatalogue(merged);
+  return merged;
+}
+
+function getStoredDetecteurCatalogue() {
+  try {
+    const raw = localStorage.getItem(DETECTEUR_CATALOGUE_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+  } catch (e) {
+    console.warn('getStoredDetecteurCatalogue error:', e);
+    return [];
+  }
+}
+
+function saveStoredDetecteurCatalogue(items) {
+  try {
+    const cleaned = Array.from(new Set((items || []).map(v => String(v || '').trim()).filter(Boolean)))
+      .sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
+    localStorage.setItem(DETECTEUR_CATALOGUE_STORAGE_KEY, JSON.stringify(cleaned));
+    return cleaned;
+  } catch (e) {
+    console.warn('saveStoredDetecteurCatalogue error:', e);
+    return [];
+  }
+}
+
+function mergeStoredDetecteurCatalogue(items) {
+  const merged = Array.from(new Set([
+    ...getStoredDetecteurCatalogue(),
+    ...((items || []).map(v => String(v || '').trim()).filter(Boolean))
+  ])).sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
+  saveStoredDetecteurCatalogue(merged);
+  return merged;
+}
+
+function getLineDetecteurMap() {
+  try {
+    const raw = localStorage.getItem(LINE_DETECTEUR_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    console.warn('getLineDetecteurMap error:', e);
+    return {};
+  }
+}
+
+function saveLineDetecteurMap(map) {
+  try {
+    localStorage.setItem(LINE_DETECTEUR_STORAGE_KEY, JSON.stringify(map || {}));
+  } catch (e) {
+    console.warn('saveLineDetecteurMap error:', e);
+  }
+}
+
+function mergeLineDetecteurMappings(rows) {
+  const current = getLineDetecteurMap();
+  let changed = false;
+  const detecteurs = [];
+  (rows || []).forEach(r => {
+    const line = String((r && (r.ligne_prod || r.ligne || r.LIGNE_PROD || r.LIGNE)) || '').trim();
+    const det  = String((r && (r.detecteur || r.DETECTEUR || r.eq || r.nom_detecteur || r.NOM_DETECTEUR)) || '').trim();
+    if (det) detecteurs.push(det);
+    if (line && det && current[line] !== det) {
+      current[line] = det;
+      changed = true;
+    }
+  });
+  if (detecteurs.length) mergeStoredDetecteurCatalogue(detecteurs);
+  if (changed) saveLineDetecteurMap(current);
+  return current;
+}
+
+function getDetecteurForLine(line) {
+  const key = String(line || '').trim();
+  if (!key) return '';
+
+  const map = getLineDetecteurMap();
+  if (map[key]) return String(map[key]).trim();
+
+  for (const cli of Object.keys(CATALOGUE || {})) {
+    const products = CATALOGUE[cli] || [];
+    const prodMatch = products.find(p => String((p && p.ligne_prod) || '').trim() === key && String((p && p.detecteur) || '').trim());
+    if (prodMatch) return String(prodMatch.detecteur).trim();
+  }
+
+  const detMatch = (dets || []).find(d => d && String((d.ligne_prod || d.ligne || '')).trim() === key && String(d.eq || '').trim());
+  return detMatch ? String(detMatch.eq).trim() : '';
+}
+
+function getLineForDetecteur(eq) {
+  const equip = String(eq || '').trim();
+  if (!equip) return '';
+  const map = getLineDetecteurMap();
+  const entry = Object.entries(map).find(([, det]) => String(det || '').trim() === equip);
+  if (entry) return entry[0];
+  const detMatch = (dets || []).find(d => d && String(d.eq || '').trim() === equip && String((d.ligne_prod || d.ligne || '')).trim());
+  return detMatch ? String(detMatch.ligne_prod || detMatch.ligne || '').trim() : '';
+}
+
+function getAllDetecteurOptions() {
+  const set = new Set();
+  getStoredDetecteurCatalogue().forEach(det => {
+    const clean = String(det || '').trim();
+    if (clean) set.add(clean);
+  });
+  Object.values(getLineDetecteurMap()).forEach(v => {
+    const det = String(v || '').trim();
+    if (det) set.add(det);
+  });
+  Object.values(CATALOGUE || {}).forEach(products => {
+    (products || []).forEach(p => {
+      const det = String((p && p.detecteur) || '').trim();
+      if (det) set.add(det);
+    });
+  });
+  (dets || []).forEach(d => {
+    const det = String((d && d.eq) || '').trim();
+    if (det) set.add(det);
+  });
+  return Array.from(set).sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
+}
+
+function populateDetecteurSelect(selectedValue = '', preferredValue = '') {
+  const sel = document.getElementById('d-equip');
+  if (!sel) return;
+  const current = String(selectedValue || sel.value || '').trim();
+  const preferred = String(preferredValue || '').trim();
+  const all = getAllDetecteurOptions();
+  const ordered = [];
+  if (preferred) ordered.push(preferred);
+  all.forEach(v => { if (!ordered.includes(v)) ordered.push(v); });
+  if (current && !ordered.includes(current)) ordered.push(current);
+
+  sel.innerHTML = '<option value="">— Sélectionner un détecteur —</option>';
+  ordered.forEach(det => {
+    sel.innerHTML += `<option value="${escapeHtml(det)}">${escapeHtml(det)}</option>`;
+  });
+  if (current) sel.value = current;
+}
+
+function autoFillDetecteurFromLine(force = false) {
+  const lineSel = document.getElementById('d-ligne');
+  const eqSel = document.getElementById('d-equip');
+  if (!lineSel || !eqSel) return;
+  const line = String(lineSel.value || '').trim();
+  const mapped = getDetecteurForLine(line);
+  populateDetecteurSelect(eqSel.value, mapped);
+  if (!mapped) { chkD1(); return; }
+  const current = String(eqSel.value || '').trim();
+  const shouldApply = force || !current || !detecteurManualOverride || current === detecteurAutoFilledValue;
+  if (shouldApply) {
+    eqSel.value = mapped;
+    detecteurAutoFilledValue = mapped;
+    detecteurManualOverride = false;
+  }
+  chkD1();
+}
+
+function onDetecteurLigneChange() {
+  autoFillDetecteurFromLine(false);
+}
+
+function onDetecteurEquipChange() {
+  const eqSel = document.getElementById('d-equip');
+  const lineSel = document.getElementById('d-ligne');
+  const equip = String(eqSel?.value || '').trim();
+  const line = String(lineSel?.value || '').trim();
+  const mapped = line ? getDetecteurForLine(line) : '';
+  detecteurManualOverride = !!equip && !!mapped && equip !== mapped;
+  if (!line && equip) {
+    const inferredLine = getLineForDetecteur(equip);
+    if (inferredLine) {
+      populateLineSelect('d-ligne', inferredLine);
+    }
+  }
+  chkD1();
+}
+
+function getAvailableLines() {
+  const set = new Set();
+
+  getStoredLineCatalogue().forEach(line => {
+    const clean = String(line || '').trim();
+    if (clean) set.add(clean);
+  });
+
+  Object.values(CATALOGUE || {}).forEach(products => {
+    (products || []).forEach(p => {
+      const line = String((p && p.ligne_prod) || '').trim();
+      if (line) set.add(line);
+    });
+  });
+
+  (sessions || []).forEach(s => {
+    const line = String((s && (s.ligne_prod || s.ligne)) || '').trim();
+    if (line) set.add(line);
+  });
+
+  (dets || []).forEach(d => {
+    const line = String((d && (d.ligne_prod || d.ligne)) || '').trim();
+    if (line) set.add(line);
+  });
+
+  return Array.from(set).sort((a,b) => a.localeCompare(b, 'fr', {sensitivity:'base'}));
+}
+
+function populateLineSelect(selectId, selectedValue = '') {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const current = selectedValue || sel.value || '';
+  const options = getAvailableLines();
+  sel.innerHTML = '<option value="">— Sélectionner une ligne —</option>';
+  options.forEach(line => {
+    sel.innerHTML += `<option value="${escapeHtml(line)}">${escapeHtml(line)}</option>`;
+  });
+  if (current) {
+    if (!options.includes(current)) {
+      sel.innerHTML += `<option value="${escapeHtml(current)}">${escapeHtml(current)}</option>`;
+    }
+    sel.value = current;
+  }
+}
+
+function prefillDetecteurLineFromEquip() {
+  const equip = document.getElementById('d-equip')?.value || '';
+  const lineSel = document.getElementById('d-ligne');
+  if (!lineSel || !equip) return;
+  const existingValue = lineSel.value;
+  if (existingValue) return;
+
+  const line = getLineForDetecteur(equip);
+  if (line) {
+    populateLineSelect('d-ligne', line);
+  }
+}
+
+let curProd = null;
+let detState = {fer:null, nfer:null, inox:null};
+let sessions = [];
+let dets = [];
+let histFilter = 'pesees';
+let deferredInstall = null;
+
+/* Chargement depuis IndexedDB au démarrage */
+async function loadFromDB() {
+  try {
+    const db = await openDB();
+    sessions = await new Promise((res, rej) => {
+      const tx = db.transaction('pesees', 'readonly');
+      const req = tx.objectStore('pesees').getAll();
+      req.onsuccess = () => res(req.result.sort((a,b) => b.id.localeCompare(a.id)));
+      req.onerror = () => rej(req.error);
+    });
+    dets = await new Promise((res, rej) => {
+      const tx = db.transaction('detecteurs', 'readonly');
+      const req = tx.objectStore('detecteurs').getAll();
+      req.onsuccess = () => res(req.result.sort((a,b) => b.id.localeCompare(a.id)));
+      req.onerror = () => rej(req.error);
+    });
+  } catch(e) {
+    console.warn('IndexedDB load error — fallback localStorage:', e);
+    try {
+      sessions = JSON.parse(localStorage.getItem('qp_sessions') || '[]');
+      dets     = JSON.parse(localStorage.getItem('qp_dets')     || '[]');
+    } catch(e2) {
+      sessions = []; dets = [];
+    }
+  }
+}
+// Attendre que le DOM ET db.js soient prêts avant d'initialiser IndexedDB
+document.addEventListener('DOMContentLoaded', () => {
+  initCatalogue();   // V12 — charge clients/produits/opérateurs depuis Supabase
+  loadFromDB().then(() => {
+    if (document.getElementById('screen-historique').classList.contains('active')) {
+      renderHist();
+    }
+  });
+});
+
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'historique') renderHist();
+  if (name === 'dashboard')  renderDashboard();
+}
+
+/* Admin : passe par le PIN avant d'afficher l'écran */
+function openAdmin(btn) {
+  // Mémoriser le bouton pour l'activer après auth
+  window._adminNavBtn = btn;
+  showPinOverlay();
+}
+
+/* ================================================================
+   STATUS RÉSEAU
+   ================================================================ */
+function updateNetStatus() {
+  const dot = document.getElementById('status-dot');
+  const lbl = document.getElementById('status-label');
+  if (navigator.onLine) {
+    dot.classList.remove('offline');
+    lbl.textContent = 'En ligne';
+  } else {
+    dot.classList.add('offline');
+    lbl.textContent = 'Hors-ligne';
+  }
+}
+window.addEventListener('online',  updateNetStatus);
+window.addEventListener('offline', updateNetStatus);
+updateNetStatus();
+reinforceOperateurInputVisibility();
+
+/* ================================================================
+   PWA — INSTALLATION
+   ================================================================ */
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  document.getElementById('install-banner').classList.add('show');
+});
+function installApp() {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(() => {
+    deferredInstall = null;
+    document.getElementById('install-banner').classList.remove('show');
+  });
+}
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').classList.remove('show');
+  toast('QualPack installée avec succès !', 'ok');
+});
+
+/* ================================================================
+   PESÉES — STEP 1
+   ================================================================ */
+function onClient() {
+  const c   = document.getElementById('sel-client').value;
+  const sel = document.getElementById('sel-produit');
+  curProd   = null;
+  document.getElementById('prod-info').classList.remove('show');
+  populateLineSelect('inp-ligne', '');
+  if (!c) {
+    sel.innerHTML = "<option value=''>— Sélectionner d'abord un client —</option>";
+    sel.disabled  = true;
+  } else {
+    sel.innerHTML = "<option value=''>— Sélectionner un produit —</option>";
+    (CATALOGUE[c] || []).forEach(p => {
+      sel.innerHTML += `<option value="${p.id}">${p.nom}</option>`;
+    });
+    sel.disabled = false;
+  }
+  chk1();
+}
+
+function onProduit() {
+  const c   = document.getElementById('sel-client').value;
+  const pid = document.getElementById('sel-produit').value;
+  curProd   = (CATALOGUE[c] || []).find(p => p.id === pid) || null;
+  const strip = document.getElementById('prod-info');
+  if (curProd) {
+    document.getElementById('ip-qn').textContent  = curProd.qn  + ' g';
+    document.getElementById('ip-tu1').textContent = curProd.tu1 + ' g';
+    document.getElementById('ip-tu2').textContent = curProd.tu2 + ' g';
+    document.getElementById('ip-tne').textContent = curProd.tne + ' g';
+    strip.classList.add('show');
+    /* Ligne de production */
+    const ligne = curProd.ligne_prod || '';
+    populateLineSelect('inp-ligne', ligne);
+    /* OF planifiés hybride */
+    const ofs = (curProd.of_planifies || '').split(',').map(s => s.trim()).filter(Boolean);
+    const selOf  = document.getElementById('sel-of');
+    const inpOf  = document.getElementById('inp-of');
+    if (ofs.length) {
+      selOf.innerHTML = "<option value=''>— Sélectionner un OF —</option>";
+      ofs.forEach(o => { selOf.innerHTML += `<option value="${o}">${o}</option>`; });
+      selOf.innerHTML += "<option value='__autre__'>Autre (saisie manuelle)</option>";
+      selOf.style.display = 'block';
+      inpOf.style.display = 'none';
+      inpOf.value = '';
+    } else {
+      selOf.style.display = 'none';
+      inpOf.style.display = 'block';
+    }
+  } else {
+    strip.classList.remove('show');
+    populateLineSelect('inp-ligne', '');
+    document.getElementById('sel-of').style.display = 'none';
+    document.getElementById('inp-of').style.display = 'block';
+  }
+  chk1();
+}
+
+function onOfSelect() {
+  const val   = document.getElementById('sel-of').value;
+  const inpOf = document.getElementById('inp-of');
+  if (val === '__autre__') {
+    inpOf.style.display = 'block';
+    inpOf.value = '';
+    inpOf.focus();
+  } else {
+    inpOf.style.display = 'none';
+    inpOf.value = val;
+  }
+  chk1();
+}
+
+function chk1() {
+  const ofVal = document.getElementById('sel-of').style.display !== 'none'
+    ? document.getElementById('sel-of').value && document.getElementById('sel-of').value !== '__autre__'
+      ? document.getElementById('sel-of').value
+      : document.getElementById('inp-of').value.trim()
+    : document.getElementById('inp-of').value.trim();
+  const ok = document.getElementById('sel-client').value
+    && document.getElementById('sel-produit').value
+    && document.getElementById('sel-op').value
+    && ofVal;
+  document.getElementById('btn-ps1').disabled = !ok;
+}
+
+function showStep(prefix, n) {
+  document.querySelectorAll(`#screen-${prefix} .step`).forEach(s => s.classList.remove('active'));
+  document.getElementById((prefix === 'pesees' ? 'ps' : 'ds') + n).classList.add('active');
+  document.getElementById('main-content').scrollTop = 0;
+}
+
+function getOFValue() {
+  const selOf = document.getElementById('sel-of');
+  if (selOf.style.display !== 'none' && selOf.value && selOf.value !== '__autre__') return selOf.value;
+  return document.getElementById('inp-of').value.trim();
+}
+
+function goPS2() {
+  showStep('pesees', 2);
+  const ligne = document.getElementById('inp-ligne').value.trim();
+  document.getElementById('ps2-sub').textContent =
+    curProd.nom + (ligne ? '  ·  ' + ligne : '') + '  ·  Qn ' + curProd.qn + ' g  ·  ' + getOFValue();
+  buildGrid();
+  updateLiveStats();
+  setTimeout(() => document.getElementById('p1') && document.getElementById('p1').focus(), 150);
+}
+
+function goPS1back() { showStep('pesees', 1); }
+
+/* ================================================================
+   PESÉES — STEP 2
+   ================================================================ */
+function buildGrid() {
+  const g = document.getElementById('pesees-grid');
+  g.innerHTML = '';
+  for (let i = 1; i <= 20; i++) {
+    g.innerHTML += `
+      <div class="p-cell">
+        <span class="p-num">#${String(i).padStart(2,'0')}</span>
+        <input class="p-input" type="number" step="0.1" id="p${i}" placeholder="—"
+          oninput="colorCell(${i})" onkeydown="nextCell(event,${i})"
+          inputmode="decimal" />
+      </div>`;
+  }
+}
+
+function nextCell(e, i) {
+  if (e.key === 'Enter' && i < 20) {
+    e.preventDefault();
+    document.getElementById('p' + (i + 1)).focus();
+  }
+}
+
+function colorCell(i) {
+  const inp = document.getElementById('p' + i);
+  const v = parseFloat(inp.value);
+  inp.classList.remove('ok', 'warn', 'err');
+  if (!isNaN(v) && curProd) {
+    if      (v < curProd.tu2) inp.classList.add('err');
+    else if (v < curProd.tu1) inp.classList.add('warn');
+    else                       inp.classList.add('ok');
+  }
+  updateLiveStats();
+}
+
+function getVals() {
+  const v = [];
+  for (let i = 1; i <= 20; i++) {
+    const x = parseFloat(document.getElementById('p' + i).value);
+    if (!isNaN(x)) v.push(x);
+  }
+  return v;
+}
+
+function updateLiveStats() {
+  const v = getVals(); const n = v.length;
+  const bar = document.getElementById('prog-bar');
+  bar.style.width = (n / 20 * 100) + '%';
+  bar.className = 'prog-bar' + (n === 20 ? ' full' : '');
+  document.getElementById('sc-n').textContent = n + ' / 20';
+  let tu1 = 0, tu2 = 0;
+  if (curProd) v.forEach(x => { if (x < curProd.tu2) tu2++; else if (x < curProd.tu1) tu1++; });
+  const moy = n ? (v.reduce((a,b) => a+b, 0) / n) : null;
+  const moyEl = document.getElementById('sc-moy');
+  moyEl.textContent = moy !== null ? moy.toFixed(1) + ' g' : '—';
+  moyEl.className = 'stat-val' + (moy === null ? '' : (moy >= curProd.qn ? ' ok' : ' err'));
+  document.getElementById('sc-tu1').textContent = tu1;
+  document.getElementById('sc-tu1').className = 'stat-val' + (tu1 > 0 ? ' warn' : '');
+  document.getElementById('sc-tu2').textContent = tu2;
+  document.getElementById('sc-tu2').className = 'stat-val' + (tu2 > 0 ? ' err' : '');
+  document.getElementById('btn-ps2').disabled = n < 20;
+}
+
+/* ================================================================
+   PESÉES — STEP 3
+   ================================================================ */
+function calcStats() {
+  const v = getVals(); const n = v.length;
+  const moy = v.reduce((a,b) => a+b, 0) / n;
+  const et  = Math.sqrt(v.reduce((a,b) => a + (b - moy) ** 2, 0) / n);
+  let tu1 = 0, tu2 = 0;
+  if (curProd) v.forEach(x => { if (x < curProd.tu2) tu2++; else if (x < curProd.tu1) tu1++; });
+  const vMoy = moy >= curProd.qn ? 'OK' : 'NON CONFORME';
+  const vDef = (tu2 === 0 && tu1 <= 2) ? 'OK' : 'NON CONFORME';
+  const vF   = (vMoy === 'OK' && vDef === 'OK') ? 'ok' : (tu2 > 0 ? 'err' : 'warn');
+  return { v, moy, et, tu1, tu2, vMoy, vDef, vF };
+}
+
+function goPS3() {
+  const r = calcStats();
+  const now = new Date().toLocaleString('fr-FR');
+  const cli = document.getElementById('sel-client').value;
+  const op  = document.getElementById('sel-op').value;
+  const of  = getOFValue();
+  const ligne = document.getElementById('inp-ligne').value.trim();
+  showStep('pesees', 3);
+
+  document.getElementById('ps3-sub').textContent = curProd.nom + (ligne ? '  ·  ' + ligne : '') + '  ·  ' + of;
+
+  const vb = document.getElementById('verdict-pesee');
+  vb.className = 'verdict ' + r.vF;
+  document.getElementById('verd-icon').textContent  = r.vF === 'ok' ? '✅' : r.vF === 'warn' ? '⚠️' : '🚫';
+  document.getElementById('verd-title').textContent = r.vF === 'ok' ? 'Lot réputé bon' : r.vF === 'warn' ? 'Lot non conforme — Vérification requise' : 'Lot non conforme — Défaut TU2 critique';
+  document.getElementById('verd-sub').textContent   = r.vF === 'ok' ? 'Moyenne et défectueux dans les tolérances réglementaires' : 'Contacter immédiatement le responsable qualité';
+
+  document.getElementById('r-moy').textContent = r.moy.toFixed(2) + ' g';
+  document.getElementById('r-moy').className   = 'stat-val ' + (r.moy >= curProd.qn ? 'ok' : 'err');
+  document.getElementById('r-et').textContent  = r.et.toFixed(2) + ' g';
+  document.getElementById('r-tu1').textContent = r.tu1;
+  document.getElementById('r-tu1').className   = 'stat-val' + (r.tu1 > 0 ? ' warn' : ' ok');
+  document.getElementById('r-tu2').textContent = r.tu2;
+  document.getElementById('r-tu2').className   = 'stat-val' + (r.tu2 > 0 ? ' err' : ' ok');
+
+  document.getElementById('rc-cli').textContent  = cli;
+  document.getElementById('rc-prod').textContent = curProd.nom;
+  document.getElementById('rc-ligne').textContent = ligne || '—';
+  document.getElementById('rc-of').textContent   = of;
+  document.getElementById('rc-op').textContent   = op;
+  document.getElementById('rc-date').textContent = now;
+  const vmEl = document.getElementById('rc-vm');
+  vmEl.textContent = r.vMoy;
+  vmEl.className = 'rv ' + (r.vMoy === 'OK' ? 'ok' : 'err');
+  const vdEl = document.getElementById('rc-vd');
+  vdEl.textContent = r.vDef;
+  vdEl.className = 'rv ' + (r.vDef === 'OK' ? 'ok' : 'err');
+
+  window._lastPesee = { r, cli, op, of, now, prod: curProd, ligne_prod: ligne || null };
+}
+
+async function saveSession() {
+  if (!window._lastPesee) return;
+  const { r, cli, op, of, now, prod, ligne_prod } = window._lastPesee;
+  const ligne = (ligne_prod || document.getElementById('inp-ligne').value || '').trim();
+  const qte   = parseInt(document.getElementById('inp-qte').value) || null;
+  const record = {
+    id: 'pesee_' + Date.now(),
+    type: 'pesee', cli, prod: prod.nom, of, op, date: now,
+    ligne: ligne || null, ligne_prod: ligne || null, qte: qte,
+    moy: r.moy.toFixed(2), et: r.et.toFixed(2),
+    tu1: r.tu1, tu2: r.tu2, vF: r.vF, pesees: r.v, synced: false
+  };
+  try {
+    await savePesee(record);
+    sessions.unshift(record);
+    toast('Relevé enregistré ✓', 'ok');
+    // Sync Supabase en arrière-plan
+    syncPesee(record).then(ok => {
+      if (ok) toast('Synchronisé ✓', 'ok');
+    });
+  } catch(e) {
+    console.error('IndexedDB saveSession error:', e);
+    // Fallback localStorage si IndexedDB échoue
+    try {
+      const stored = JSON.parse(localStorage.getItem('qp_sessions') || '[]');
+      stored.unshift(record);
+      localStorage.setItem('qp_sessions', JSON.stringify(stored));
+      sessions.unshift(record);
+      toast('Relevé enregistré (local) ✓', 'ok');
+    } catch(e2) {
+      toast('Erreur enregistrement', 'err');
+    }
+  }
+}
+
+function newPesee() {
+  showStep('pesees', 1);
+  document.getElementById('sel-client').value = '';
+  document.getElementById('sel-produit').innerHTML = '<option value="">— Sélectionner d\'abord un client —</option>';
+  document.getElementById('sel-produit').disabled = true;
+  document.getElementById('sel-op').value = '';
+  document.getElementById('inp-of').value = '';
+  document.getElementById('inp-qte').value = '';
+  populateLineSelect('inp-ligne', '');
+  document.getElementById('sel-of').style.display = 'none';
+  document.getElementById('inp-of').style.display = 'block';
+  document.getElementById('prod-info').classList.remove('show');
+  document.getElementById('btn-ps1').disabled = true;
+  curProd = null;
+}
+
+/* ================================================================
+   DÉTECTEUR — STEP 1
+   ================================================================ */
+function chkD1() {
+  prefillDetecteurLineFromEquip();
+  document.getElementById('btn-ds1').disabled =
+    !(document.getElementById('d-equip').value
+    && document.getElementById('d-op').value
+    && document.getElementById('d-type').value);
+}
+
+function goDS2() {
+  detState = { fer:null, nfer:null, inox:null };
+  ['fer','nfer','inox'].forEach(k => {
+    document.getElementById('dc-' + k).className = 'det-card';
+    document.getElementById('ds-' + k).textContent = '— Non testé';
+  });
+  document.getElementById('btn-ds2').disabled = true;
+  const ligne = document.getElementById('d-ligne').value.trim();
+  document.getElementById('ds2-sub').textContent =
+    document.getElementById('d-equip').value + (ligne ? '  ·  ' + ligne : '') + '  ·  ' + document.getElementById('d-type').value;
+  showStep('detecteur', 2);
+}
+
+function goDS1back() { showStep('detecteur', 1); }
+
+/* ================================================================
+   DÉTECTEUR — STEP 2
+   ================================================================ */
+function toggleDet(k) {
+  setDet(k, detState[k] === null ? true : !detState[k]);
+}
+
+function setDet(k, pass) {
+  detState[k] = pass;
+  const card = document.getElementById('dc-' + k);
+  const stat = document.getElementById('ds-' + k);
+  card.className = 'det-card ' + (pass ? 'pass' : 'fail');
+  stat.textContent = pass ? '✓ Réussi' : '✗ Échoué';
+  chkDS2();
+}
+
+function chkDS2() {
+  document.getElementById('btn-ds2').disabled = Object.values(detState).some(v => v === null);
+}
+
+/* ================================================================
+   DÉTECTEUR — STEP 3
+   ================================================================ */
+function goDS3() {
+  const eq   = document.getElementById('d-equip').value;
+  const op   = document.getElementById('d-op').value;
+  const of   = document.getElementById('d-of').value.trim() || '—';
+  const type = document.getElementById('d-type').value;
+  const ligne = document.getElementById('d-ligne').value.trim();
+  const now  = new Date().toLocaleString('fr-FR');
+  const allOk = Object.values(detState).every(v => v === true);
+  const vF = allOk ? 'ok' : 'err';
+
+  showStep('detecteur', 3);
+
+  document.getElementById('ds3-sub').textContent = eq + (ligne ? '  ·  ' + ligne : '') + '  ·  ' + type;
+
+  const dvb = document.getElementById('verdict-det');
+  dvb.className = 'verdict ' + vF;
+  document.getElementById('d-verd-icon').textContent  = allOk ? '✅' : '🚫';
+  document.getElementById('d-verd-title').textContent = allOk ? 'Détecteur conforme' : 'Détecteur non conforme';
+  document.getElementById('d-verd-sub').textContent   = allOk ? 'Les 3 étalons ont été correctement détectés' : 'Un ou plusieurs étalons non détectés — Arrêt de ligne requis';
+
+  document.getElementById('dr-eq').textContent   = eq;
+  document.getElementById('dr-ligne').textContent = ligne || '—';
+  document.getElementById('dr-op').textContent   = op;
+  document.getElementById('dr-of').textContent   = of;
+  document.getElementById('dr-type').textContent = type;
+  document.getElementById('dr-date').textContent = now;
+
+  const ferEl  = document.getElementById('dr-fer');
+  const nferEl = document.getElementById('dr-nfer');
+  const inoxEl = document.getElementById('dr-inox');
+  ferEl.textContent  = detState.fer  ? 'Réussi' : 'Échoué';
+  nferEl.textContent = detState.nfer ? 'Réussi' : 'Échoué';
+  inoxEl.textContent = detState.inox ? 'Réussi' : 'Échoué';
+  ferEl.className  = 'rv ' + (detState.fer  ? 'ok' : 'err');
+  nferEl.className = 'rv ' + (detState.nfer ? 'ok' : 'err');
+  inoxEl.className = 'rv ' + (detState.inox ? 'ok' : 'err');
+
+  window._lastDet = { eq, op, of, type, now, ligne_prod: ligne || null, vF, fer:detState.fer, nfer:detState.nfer, inox:detState.inox };
+}
+
+async function saveDet() {
+  if (!window._lastDet) return;
+  const record = {
+    id: 'det_' + Date.now(),
+    type: 'det',
+    ligne: window._lastDet.ligne_prod || null,
+    ...window._lastDet,
+    synced: false
+  };
+  try {
+    await saveDetecteur(record);
+    dets.unshift(record);
+    toast('Test enregistré ✓', 'ok');
+    // Sync Supabase en arrière-plan
+    syncDetecteur(record).then(ok => {
+      if (ok) toast('Synchronisé ✓', 'ok');
+    });
+  } catch(e) {
+    console.error('IndexedDB saveDet error:', e);
+    // Fallback localStorage si IndexedDB échoue
+    try {
+      const stored = JSON.parse(localStorage.getItem('qp_dets') || '[]');
+      stored.unshift(record);
+      localStorage.setItem('qp_dets', JSON.stringify(stored));
+      dets.unshift(record);
+      toast('Test enregistré (local) ✓', 'ok');
+    } catch(e2) {
+      toast('Erreur enregistrement', 'err');
+    }
+  }
+}
+
+function newDet() {
+  showStep('detecteur', 1);
+  ['d-equip','d-op','d-of','d-type','d-ligne'].forEach(id => document.getElementById(id).value = '');
+  detecteurManualOverride = false;
+  detecteurAutoFilledValue = '';
+  populateLineSelect('d-ligne', '');
+  populateDetecteurSelect('', '');
+  document.getElementById('btn-ds1').disabled = true;
+}
+
+/* ================================================================
+   HISTORIQUE
+   ================================================================ */
+function filterHist(f) {
+  histFilter = f;
+  document.getElementById('hf-p').className = 'hf-btn' + (f === 'pesees' ? ' active' : '');
+  document.getElementById('hf-d').className = 'hf-btn' + (f === 'det'    ? ' active' : '');
+  renderHist();
+}
+
+function renderHist() {
+  const list = document.getElementById('hist-list');
+  if (histFilter === 'pesees') {
+    if (!sessions.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚖</div>Aucun relevé de pesée enregistré</div>';
+      return;
+    }
+    list.innerHTML = sessions.map(s => `
+      <div class="hist-item">
+        <div>
+          <div class="hi-title">${s.prod}${(s.ligne_prod || s.ligne) ? '  ·  ' + (s.ligne_prod || s.ligne) : ''}  ·  ${s.of}</div>
+          <div class="hi-meta">${s.op}  ·  ${s.date}  ·  moy. ${s.moy} g</div>
+        </div>
+        <span class="badge ${s.vF}">${s.vF === 'ok' ? 'Conforme' : s.vF === 'warn' ? 'À vérifier' : 'Non conforme'}</span>
+      </div>`).join('');
+  } else {
+    if (!dets.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>Aucun test détecteur enregistré</div>';
+      return;
+    }
+    list.innerHTML = dets.map(d => `
+      <div class="hist-item">
+        <div>
+          <div class="hi-title">${d.eq}${(d.ligne_prod || d.ligne) ? '  ·  ' + (d.ligne_prod || d.ligne) : ''}  ·  ${d.type}</div>
+          <div class="hi-meta">${d.op}  ·  ${d.date || d.now || '—'}</div>
+        </div>
+        <span class="badge ${d.vF}">${d.vF === 'ok' ? 'Conforme' : 'Non conforme'}</span>
+      </div>`).join('');
+  }
+}
+
+
+/* ================================================================
+   EXPORT EXCEL — PESÉES
+   ================================================================ */
+function genExcelPesee() {
+  const XLSXLib = window.XLSX || (typeof XLSX !== 'undefined' ? XLSX : null);
+  if (!window._lastPesee || !XLSXLib) {
+    toast('Librairie Excel indisponible', 'err');
+    return;
+  }
+
+  const d = window._lastPesee;
+  const r = d.r;
+  const wb = XLSXLib.utils.book_new();
+
+  const controleData = [
+    ['CONTROLE QUALITE PREEMBALLES'],
+    [],
+    ['Client', d.cli],
+    ['Produit', d.prod.nom],
+    ['N° OF', d.of],
+    ['Opérateur', d.op],
+    ['Date / Heure', d.now],
+    [],
+    ['Qn', d.prod.qn],
+    ['TNE', d.prod.tne],
+    ['TU1', d.prod.tu1],
+    ['TU2', d.prod.tu2],
+    [],
+    ['N°', 'Poids (g)', 'Statut']
+  ];
+
+  r.v.forEach((val, i) => {
+    let statut = 'OK';
+    if (val < d.prod.tu2) statut = 'TU2';
+    else if (val < d.prod.tu1) statut = 'TU1';
+    controleData.push([i + 1, Number(val.toFixed(1)), statut]);
+  });
+
+  controleData.push([]);
+  controleData.push(['Moyenne', Number(r.moy.toFixed(2))]);
+  controleData.push(['Écart-type', Number(r.et.toFixed(2))]);
+  controleData.push(['Défauts TU1', r.tu1]);
+  controleData.push(['Défauts TU2', r.tu2]);
+  controleData.push(['Verdict moyenne', r.vMoy]);
+  controleData.push(['Verdict défectueux', r.vDef]);
+  controleData.push(['Verdict final', r.vF === 'ok' ? 'CONFORME' : r.vF === 'warn' ? 'A VERIFIER' : 'NON CONFORME']);
+
+  const wsControle = XLSXLib.utils.aoa_to_sheet(controleData);
+  wsControle['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 14 }];
+  XLSXLib.utils.book_append_sheet(wb, wsControle, 'Controle_Pesee');
+
+  const syntheseData = [[
+    'OF', 'Client', 'Produit', 'Opérateur', 'Date', 'Moyenne', 'Écart-type', 'TU1', 'TU2', 'Verdict'
+  ]];
+  syntheseData.push([
+    d.of, d.cli, d.prod.nom, d.op, d.now,
+    Number(r.moy.toFixed(2)), Number(r.et.toFixed(2)), r.tu1, r.tu2,
+    r.vF === 'ok' ? 'CONFORME' : r.vF === 'warn' ? 'A VERIFIER' : 'NON CONFORME'
+  ]);
+  const wsSynthese = XLSXLib.utils.aoa_to_sheet(syntheseData);
+  wsSynthese['!cols'] = [
+    { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 20 },
+    { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 16 }
+  ];
+  XLSXLib.utils.book_append_sheet(wb, wsSynthese, 'Synthese');
+
+  const wsDetecteur = XLSXLib.utils.aoa_to_sheet([
+    ['TEST DETECTEUR'],
+    [],
+    ['Ce fichier provient d\'un contrôle de pesée.'],
+    ['Aucun test détecteur lié à cet export.']
+  ]);
+  wsDetecteur['!cols'] = [{ wch: 42 }];
+  XLSXLib.utils.book_append_sheet(wb, wsDetecteur, 'Detecteur');
+
+  const safeOF = (d.of || 'controle').replace(/[^\w\-]+/g, '_');
+  XLSXLib.writeFile(wb, `qualpack_controle_${safeOF}.xlsx`);
+}
+
+/* ================================================================
+   EXPORT EXCEL — DÉTECTEUR
+   ================================================================ */
+function genExcelDet() {
+  const XLSXLib = window.XLSX || (typeof XLSX !== 'undefined' ? XLSX : null);
+  if (!window._lastDet || !XLSXLib) {
+    toast('Librairie Excel indisponible', 'err');
+    return;
+  }
+
+  const d = window._lastDet;
+  const wb = XLSXLib.utils.book_new();
+  const verdict = d.fer && d.nfer && d.inox ? 'CONFORME' : 'NON CONFORME';
+
+  const detecteurData = [
+    ['TEST DETECTEUR DE METAUX'],
+    [],
+    ['Équipement', d.eq],
+    ['Opérateur', d.op],
+    ['N° OF', d.of],
+    ['Type de test', d.type],
+    ['Date / Heure', d.now],
+    [],
+    ['Echantillon', 'Résultat'],
+    ['Ferreux', d.fer ? 'REUSSI' : 'ECHEC'],
+    ['Non ferreux', d.nfer ? 'REUSSI' : 'ECHEC'],
+    ['Inox', d.inox ? 'REUSSI' : 'ECHEC'],
+    [],
+    ['Verdict final', verdict]
+  ];
+  const wsDetecteur = XLSXLib.utils.aoa_to_sheet(detecteurData);
+  wsDetecteur['!cols'] = [{ wch: 20 }, { wch: 18 }];
+  XLSXLib.utils.book_append_sheet(wb, wsDetecteur, 'Detecteur');
+
+  const syntheseData = [[
+    'Équipement', 'Opérateur', 'OF', 'Type', 'Date', 'Ferreux', 'Non ferreux', 'Inox', 'Verdict'
+  ]];
+  syntheseData.push([
+    d.eq, d.op, d.of, d.type, d.now,
+    d.fer ? 'OK' : 'ECHEC', d.nfer ? 'OK' : 'ECHEC', d.inox ? 'OK' : 'ECHEC', verdict
+  ]);
+  const wsSynthese = XLSXLib.utils.aoa_to_sheet(syntheseData);
+  wsSynthese['!cols'] = [
+    { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 20 },
+    { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 16 }
+  ];
+  XLSXLib.utils.book_append_sheet(wb, wsSynthese, 'Synthese');
+
+  const safeEq = (d.eq || 'detecteur').replace(/[^\w\-]+/g, '_');
+  XLSXLib.writeFile(wb, `qualpack_detecteur_${safeEq}.xlsx`);
+}
+
+/* ================================================================
+   EXPORT PDF — PESÉES
+   ================================================================ */
+async function genPDF() {
+  await window._libsReady;
+  if (!window._lastPesee || typeof window.jspdf === 'undefined') {
+    toast('Librairie PDF indisponible (mode hors-ligne ?)', 'err'); return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const { r, cli, op, of, now, prod } = window._lastPesee;
+  const M = 18; let y = 0;
+
+  /* En-tête */
+  doc.setFillColor(13, 27, 42);
+  doc.rect(0, 0, 210, 22, 'F');
+  doc.setFillColor(46, 125, 209);
+  doc.rect(0, 22, 210, 2, 'F');
+  doc.setTextColor(232, 237, 243);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+  doc.text('QUALPACK', M, 11);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text('RAPPORT DE CONTRÔLE PRÉEMBALLÉS', M, 17);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.setTextColor(122, 143, 166);
+  doc.text('Généré le ' + now, 210 - M, 17, { align:'right' });
+
+  y = 32;
+  doc.setTextColor(30, 30, 40);
+
+  /* Bloc identification */
+  doc.setFillColor(245, 247, 250);
+  doc.roundedRect(M, y, 174, 38, 3, 3, 'F');
+  doc.setDrawColor(200, 210, 225);
+  doc.roundedRect(M, y, 174, 38, 3, 3, 'S');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+  doc.setTextColor(74, 98, 120);
+  doc.text('IDENTIFICATION', M + 6, y + 7);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.setTextColor(30, 30, 40);
+  const id1 = [['Client', cli], ['Produit', prod.nom], ['N° OF', of], ['Opérateur', op]];
+  id1.forEach(([k, v], i) => {
+    const col = i % 2; const row = Math.floor(i / 2);
+    const x = M + 6 + col * 87; const ly = y + 15 + row * 10;
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(122, 143, 166); doc.setFontSize(7);
+    doc.text(k.toUpperCase(), x, ly);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 30, 40); doc.setFontSize(10);
+    doc.text(v, x, ly + 5);
+  });
+
+  y += 46;
+
+  /* Seuils produit */
+  doc.setFillColor(14, 45, 74);
+  doc.roundedRect(M, y, 174, 16, 3, 3, 'F');
+  const seuils = [['Qn (nominal)', prod.qn + ' g'], ['TU1 (T1)', prod.tu1 + ' g'], ['TU2 (T2)', prod.tu2 + ' g'], ['TNE', prod.tne + ' g']];
+  seuils.forEach(([k, v], i) => {
+    const x = M + 6 + i * 43;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(122, 143, 166);
+    doc.text(k, x, y + 6);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(74, 154, 232);
+    doc.text(v, x, y + 12);
+  });
+
+  y += 24;
+
+  /* Statistiques */
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(74, 98, 120);
+  doc.text('RÉSULTATS STATISTIQUES', M, y); y += 5;
+  doc.setDrawColor(200, 210, 225); doc.line(M, y, 210 - M, y); y += 6;
+
+  const stats = [
+    ['Moyenne calculée', r.moy.toFixed(2) + ' g', r.moy >= prod.qn],
+    ['Écart-type',        r.et.toFixed(2) + ' g',  true],
+    ['Défauts TU1 (max 2)', r.tu1 + ' / 20',         r.tu1 <= 2],
+    ['Défauts TU2 (max 0)', r.tu2 + ' / 20',         r.tu2 === 0],
+    ['Verdict moyenne',     r.vMoy,                   r.vMoy === 'OK'],
+    ['Verdict défectueux',  r.vDef,                   r.vDef === 'OK'],
+  ];
+  stats.forEach(([k, v, ok]) => {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(50, 60, 70);
+    doc.text(k, M + 2, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(ok ? 15 : 163, ok ? 110 : 45, ok ? 86 : 45);
+    doc.text(v, 210 - M, y, { align:'right' });
+    y += 7;
+  });
+
+  y += 4;
+
+  /* Pesées */
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(74, 98, 120);
+  doc.text('DÉTAIL DES 20 PESÉES', M, y); y += 5;
+  doc.setDrawColor(200, 210, 225); doc.line(M, y, 210 - M, y); y += 5;
+
+  r.v.forEach((val, i) => {
+    const col = i % 5; const row = Math.floor(i / 5);
+    const x = M + col * 34; const py = y + row * 8;
+    const isOk   = val >= prod.tu1;
+    const isWarn = val >= prod.tu2 && val < prod.tu1;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+    doc.setTextColor(100, 115, 130);
+    doc.text('#' + String(i+1).padStart(2,'0'), x, py);
+    if (isOk)        doc.setTextColor(15, 110, 86);
+    else if (isWarn) doc.setTextColor(186, 117, 23);
+    else             doc.setTextColor(163, 45, 45);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text(val.toFixed(1) + 'g', x + 10, py);
+  });
+
+  y += Math.ceil(r.v.length / 5) * 8 + 10;
+
+  /* Verdict final */
+  const vc = r.vF === 'ok' ? [8,42,28,26,201,109,13,110,86] : r.vF === 'warn' ? [45,30,8,232,137,26,186,117,23] : [45,14,14,214,59,59,163,45,45];
+  doc.setFillColor(vc[0], vc[1], vc[2]);
+  doc.roundedRect(M, y, 174, 18, 4, 4, 'F');
+  doc.setFillColor(vc[3], vc[4], vc[5]);
+  doc.roundedRect(M, y, 5, 18, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  doc.setTextColor(vc[6], vc[7], vc[8]);
+  const vt = r.vF === 'ok' ? 'LOT RÉPUTÉ BON' : r.vF === 'warn' ? 'LOT NON CONFORME — VÉRIFICATION REQUISE' : 'LOT NON CONFORME — DÉFAUT TU2 CRITIQUE';
+  doc.text(vt, M + 12, y + 11);
+
+  y += 28;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+  doc.text('QualPack V1.0  ·  Document généré automatiquement  ·  ' + now, M, y);
+
+  doc.save('qualpack_pesees_' + of.replace(/\s/g,'_') + '_' + Date.now() + '.pdf');
+}
+
+/* ================================================================
+   EXPORT PDF — DÉTECTEUR
+   ================================================================ */
+async function genPDFdet() {
+  await window._libsReady;
+  if (!window._lastDet || typeof window.jspdf === 'undefined') {
+    toast('Librairie PDF indisponible (mode hors-ligne ?)', 'err'); return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const D = window._lastDet;
+  const M = 18; let y = 0;
+
+  doc.setFillColor(13, 27, 42); doc.rect(0, 0, 210, 22, 'F');
+  doc.setFillColor(46, 125, 209); doc.rect(0, 22, 210, 2, 'F');
+  doc.setTextColor(232, 237, 243);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+  doc.text('QUALPACK', M, 11);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text('RAPPORT TEST DÉTECTEUR DE MÉTAUX', M, 17);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.setTextColor(122, 143, 166);
+  doc.text('Généré le ' + D.now, 210 - M, 17, { align:'right' });
+
+  y = 32;
+  doc.setFillColor(245, 247, 250);
+  doc.roundedRect(M, y, 174, 44, 3, 3, 'F');
+  doc.setDrawColor(200, 210, 225);
+  doc.roundedRect(M, y, 174, 44, 3, 3, 'S');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+  doc.setTextColor(74, 98, 120);
+  doc.text('IDENTIFICATION', M + 6, y + 7);
+  const fields = [['Équipement',D.eq],['Opérateur',D.op],['N° OF',D.of],['Type de test',D.type],['Date',D.now]];
+  fields.forEach(([k, v], i) => {
+    const col = i % 2; const row = Math.floor(i / 2);
+    const x = M + 6 + col * 87; const ly = y + 16 + row * 12;
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(122, 143, 166); doc.setFontSize(7);
+    doc.text(k.toUpperCase(), x, ly);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 30, 40); doc.setFontSize(10);
+    doc.text(String(v), x, ly + 5);
+  });
+
+  y += 54;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(74, 98, 120);
+  doc.text('RÉSULTATS DES TESTS', M, y); y += 5;
+  doc.setDrawColor(200, 210, 225); doc.line(M, y, 210 - M, y); y += 8;
+
+  [['Étalon ferreux', D.fer], ['Étalon non ferreux', D.nfer], ['Étalon inox', D.inox]].forEach(([k, v]) => {
+    doc.setFillColor(v ? 8 : 45, v ? 42 : 14, v ? 28 : 14);
+    doc.roundedRect(M, y - 5, 174, 12, 2, 2, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.setTextColor(v ? 93 : 240, v ? 219 : 112, v ? 168 : 112);
+    doc.text(k, M + 6, y + 3);
+    doc.setFont('helvetica', 'bold');
+    doc.text(v ? '✓  RÉUSSI' : '✗  ÉCHOUÉ', 210 - M, y + 3, { align:'right' });
+    y += 16;
+  });
+
+  y += 6;
+  const allOk = D.fer && D.nfer && D.inox;
+  const vc = allOk ? [8,42,28,26,201,109,13,110,86] : [45,14,14,214,59,59,163,45,45];
+  doc.setFillColor(vc[0], vc[1], vc[2]);
+  doc.roundedRect(M, y, 174, 18, 4, 4, 'F');
+  doc.setFillColor(vc[3], vc[4], vc[5]);
+  doc.roundedRect(M, y, 5, 18, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  doc.setTextColor(vc[6], vc[7], vc[8]);
+  doc.text(allOk ? 'DÉTECTEUR CONFORME' : 'DÉTECTEUR NON CONFORME — ARRÊT DE LIGNE REQUIS', M + 12, y + 11);
+
+  y += 28;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+  doc.text('QualPack V1.0  ·  Document généré automatiquement  ·  ' + D.now, M, y);
+
+  doc.save('qualpack_detecteur_' + D.eq + '_' + Date.now() + '.pdf');
+}
+
+/* ================================================================
+   EXPORT EXCEL
+   ================================================================ */
+async function genExcel() {
+  await window._libsReady;
+
+  const XLSXLib = window.XLSX || (typeof XLSX !== 'undefined' ? XLSX : null);
+  if (!XLSXLib) {
+    toast('Librairie Excel indisponible', 'err');
+    return;
+  }
+
+  try {
+    const pesees = await getAllPesees();
+    const detsAll = await getAllDetecteurs();
+
+    const wb = XLSXLib.utils.book_new();
+
+    const safeNumber = (v) => {
+      if (v === '' || v === null || v === undefined) return '';
+      const n = Number(v);
+      return Number.isFinite(n) ? n : '';
+    };
+
+    const safeArrayToText = (v) => {
+      if (Array.isArray(v)) return v.join(' | ');
+      if (typeof v === 'string') return v;
+      if (v === null || v === undefined) return '';
+      return String(v);
+    };
+
+    const peseesRows = (Array.isArray(pesees) ? pesees : []).map((s) => ({
+      'Date':           s?.date || '',
+      'N° OF':          s?.of || '',
+      'Client':         s?.cli || '',
+      'Produit':        s?.prod || '',
+      'Ligne':          s?.ligne_prod || s?.ligne || '',
+      'Opérateur':      s?.op || '',
+      'Moyenne (g)':    safeNumber(s?.moy),
+      'Écart-type (g)': safeNumber(s?.et),
+      'Défauts TU1':    safeNumber(s?.tu1),
+      'Défauts TU2':    safeNumber(s?.tu2),
+      'Verdict':        s?.vF === 'ok'
+                          ? 'Conforme'
+                          : s?.vF === 'warn'
+                            ? 'À surveiller'
+                            : 'Non conforme',
+      'Pesées détail':  safeArrayToText(s?.pesees)
+    }));
+
+    const wsPesees = XLSXLib.utils.json_to_sheet(
+      peseesRows.length ? peseesRows : [{ 'Info': 'Aucun relevé' }]
+    );
+    XLSXLib.utils.book_append_sheet(wb, wsPesees, 'Pesees');
+
+    const detRows = (Array.isArray(detsAll) ? detsAll : []).map((d) => ({
+      'Date':         d?.now || d?.date || '',
+      'Équipement':   d?.eq || '',
+      'Ligne':        d?.ligne_prod || d?.ligne || '',
+      'Opérateur':    d?.op || '',
+      'N° OF':        d?.of || '',
+      'Type de test': d?.testType || d?.type || '',
+      'Ferreux':      d?.fer  ? 'Réussi' : 'Échoué',
+      'Non ferreux':  d?.nfer ? 'Réussi' : 'Échoué',
+      'Inox':         d?.inox ? 'Réussi' : 'Échoué',
+      'Verdict':      d?.vF === 'ok' ? 'Conforme' : 'Non conforme'
+    }));
+
+    const wsDet = XLSXLib.utils.json_to_sheet(
+      detRows.length ? detRows : [{ 'Info': 'Aucun test' }]
+    );
+    XLSXLib.utils.book_append_sheet(wb, wsDet, 'Detecteur');
+
+    const date = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
+    XLSXLib.writeFile(wb, `qualpack_export_${date}.xlsx`);
+    toast('Export Excel téléchargé', 'ok');
+  } catch (e) {
+    console.error('genExcel error:', e);
+    toast('Erreur export Excel', 'err');
+  }
+}
+
+/* ================================================================
+   TOAST
+   ================================================================ */
+let toastTimer;
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ================================================================
+   DASHBOARD — RESPONSABLE QUALITÉ V8
+   ================================================================ */
+let dashPeriod = 7;
+let dashFilters = { client:'', product:'', status:'all' };
+
+function setDashPeriod(days, btn) {
+  dashPeriod = days;
+  document.querySelectorAll('.dp-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDashboard();
+}
+
+function setDashFilter(key, value) {
+  dashFilters[key] = value;
+  if (key === 'client') {
+    const productSel = document.getElementById('dash-filter-product');
+    dashFilters.product = '';
+    if (productSel) productSel.value = '';
+    populateDashFilters();
+  }
+  renderDashboard();
+}
+
+function resetDashFilters() {
+  dashFilters = { client:'', product:'', status:'all' };
+  const c = document.getElementById('dash-filter-client');
+  const p = document.getElementById('dash-filter-product');
+  const s = document.getElementById('dash-filter-status');
+  if (c) c.value = '';
+  if (p) p.value = '';
+  if (s) s.value = 'all';
+  populateDashFilters();
+  renderDashboard();
+}
+
+function filterByPeriod(items, days) {
+  if (!days) return items;
+  const cutoff = Date.now() - days * 86400000;
+  return items.filter(s => {
+    const ts = parseFRDate(s.date || s.now);
+    return !isNaN(ts) ? ts >= cutoff : true;
+  });
+}
+
+function pctColor(v) {
+  return v === null ? '' : v >= 95 ? 'green' : v >= 80 ? 'orange' : 'red';
+}
+
+function parseFRDate(raw) {
+  const parts = (raw || '').replace(',','').split(' ');
+  if (parts.length < 2) return NaN;
+  const [d, m, y] = parts[0].split('/');
+  return new Date(`${y}-${m}-${d}T${parts[1]}`).getTime();
+}
+
+const ICONS = {
+  scale:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L4 9v12h5v-6h6v6h5V9z"/></svg>`,
+  detector:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>`,
+  calendar:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+  clock:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`,
+  tu1:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  tu2:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
+  taux:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-6"/></svg>`,
+  conform:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l8 4v6c0 5-3.5 9.74-8 11-4.5-1.26-8-6-8-11V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`,
+  prio:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>`,
+  pilotage:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+  pin:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>`,
+  equip:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>`,
+  check:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>`,
+  cloud:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 17.58A5 5 0 0018 8h-1.26A8 8 0 104 16.25"/><path d="M16 16l-4-4-4 4"/><path d="M12 12v9"/></svg>`,
+  arrowUp:   `<svg class="trend-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 13V3M3 8l5-5 5 5"/></svg>`,
+  arrowDn:   `<svg class="trend-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3v10M3 8l5 5 5-5"/></svg>`,
+  arrowFlat: `<svg class="trend-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 8h12M10 4l4 4-4 4"/></svg>`,
+};
+
+function filterPrevPeriod(items, days) {
+  if (!days) return [];
+  const cutoff = Date.now() - days * 86400000;
+  const prev   = cutoff - days * 86400000;
+  return items.filter(s => {
+    const ts = parseFRDate(s.date || s.now);
+    return !isNaN(ts) && ts >= prev && ts < cutoff;
+  });
+}
+
+function trendBadge(currVal, prevVal, isInverted, suffix) {
+  if (prevVal === null || prevVal === undefined || currVal === null || currVal === undefined) return '';
+  const delta = Math.round((currVal - prevVal) * 10) / 10;
+  if (delta === 0) return `<span class="trend flat">${ICONS.arrowFlat} stable</span>`;
+  const up = delta > 0;
+  const good = up !== isInverted;
+  const cls = good ? 'good' : 'bad';
+  const arrow = up ? ICONS.arrowUp : ICONS.arrowDn;
+  const sign = up ? '+' : '';
+  return `<span class="trend ${cls}">${arrow}${sign}${delta}${suffix || ''}</span>`;
+}
+
+function kpiCard(colorClass, svgIcon, val, valClass, label, trend) {
+  return `<div class="kpi-card ${colorClass}">
+    <div class="kpi-svg-icon">${svgIcon}</div>
+    <div class="kpi-val ${valClass || ''}">${val}</div>
+    <div class="kpi-label">${label}</div>
+    ${trend ? `<div class="kpi-trend">${trend}</div>` : ''}
+  </div>`;
+}
+
+function blockHeader(svgIcon, label, subtitle) {
+  return `<div class="dash-block-header">
+    <div class="dbh-left">
+      <span class="dbh-svg-icon">${svgIcon}</span>
+      <span class="dbh-title">${label}</span>
+    </div>
+    ${subtitle ? `<span class="dbh-sub">${subtitle}</span>` : ''}
+  </div>`;
+}
+
+function conformBar(label, pct, detail, colorCl, trend) {
+  return `<div class="conform-bar-wrap">
+    <div class="cb-top">
+      <span class="cb-label">${label}</span>
+      <div style="display:flex;align-items:center;gap:8px">${trend || ''}<span class="cb-pct ${colorCl}">${pct}%</span></div>
+    </div>
+    <div class="cb-track"><div class="cb-fill ${colorCl}" style="width:${pct}%"></div></div>
+    <div class="cb-sub">${detail}</div>
+  </div>`;
+}
+
+function relativeFromTs(ts) {
+  if (!ts || isNaN(ts)) return '—';
+  const diffMin = Math.round((Date.now() - ts) / 60000);
+  if (diffMin < 1) return "À l'instant";
+  if (diffMin < 60) return `Il y a ${diffMin} min`;
+  if (diffMin < 1440) return `Il y a ${Math.round(diffMin/60)} h`;
+  return new Date(ts).toLocaleDateString('fr-FR');
+}
+
+function populateDashFilters() {
+  const clientSel = document.getElementById('dash-filter-client');
+  const prodSel = document.getElementById('dash-filter-product');
+  if (!clientSel || !prodSel) return;
+
+  const clients = [...new Set(sessions.map(s => s.cli).filter(Boolean))].sort();
+  clientSel.innerHTML = '<option value="">Tous les clients</option>' + clients.map(c => `<option value="${c}">${c}</option>`).join('');
+  clientSel.value = dashFilters.client || '';
+
+  let prods = sessions;
+  if (dashFilters.client) prods = prods.filter(s => s.cli === dashFilters.client);
+  const products = [...new Set(prods.map(s => s.prod).filter(Boolean))].sort();
+  prodSel.innerHTML = '<option value="">Tous les produits</option>' + products.map(p => `<option value="${p}">${p}</option>`).join('');
+  prodSel.value = dashFilters.product || '';
+}
+
+function applyDashFilters(pItems, dItems) {
+  let p = [...pItems];
+  let d = [...dItems];
+  if (dashFilters.client) p = p.filter(s => s.cli === dashFilters.client);
+  if (dashFilters.product) p = p.filter(s => s.prod === dashFilters.product);
+  if (dashFilters.status !== 'all') {
+    p = p.filter(s => s.vF === dashFilters.status);
+    if (dashFilters.status === 'warn') d = [];
+    else d = d.filter(s => (dashFilters.status === 'ok' ? s.vF === 'ok' : s.vF !== 'ok'));
+  }
+  return { p, d };
+}
+
+function buildStatusHero(pF, dF) {
+  const tu2 = pF.reduce((acc, s) => acc + (parseInt(s.tu2) || 0), 0);
+  const tu1 = pF.reduce((acc, s) => acc + (parseInt(s.tu1) || 0), 0);
+  const detKo = dF.filter(d => d.vF !== 'ok').length;
+  let cls = 'ok', chip = 'Conforme', main = 'Production maîtrisée', sub = 'Aucune alerte critique détectée sur la période sélectionnée.';
+  if (tu2 > 0 || detKo > 0) {
+    cls = 'err'; chip = 'Non conforme';
+    main = 'Action prioritaire requise';
+    sub = `${tu2} défaut${tu2>1?'s':''} TU2 et ${detKo} test${detKo>1?'s':''} détecteur NOK sur la période.`;
+  } else if (tu1 > 0) {
+    cls = 'warn'; chip = 'À surveiller';
+    main = 'Dérives à analyser';
+    sub = `${tu1} défaut${tu1>1?'s':''} TU1 détecté${tu1>1?'s':''}. Revue qualité conseillée.`;
+  }
+  const activeLots = pF.length;
+  const activeDet = dF.length;
+  const lastTs = Math.max(0, ...[...pF, ...dF].map(x => parseFRDate(x.date || x.now)).filter(x => !isNaN(x)));
+  return `<div class="status-hero ${cls}">
+    <div class="status-top">
+      <div>
+        <div class="status-title">Statut global</div>
+        <div class="status-main">${main}</div>
+        <div class="status-sub">${sub}</div>
+      </div>
+      <span class="status-chip ${cls}">${chip}</span>
+    </div>
+    <div class="status-meta-grid">
+      <div class="status-meta-card"><div class="status-meta-label">Lots contrôlés</div><div class="status-meta-val">${activeLots}</div></div>
+      <div class="status-meta-card"><div class="status-meta-label">Tests détecteur</div><div class="status-meta-val">${activeDet}</div></div>
+      <div class="status-meta-card"><div class="status-meta-label">Dernière activité</div><div class="status-meta-val">${relativeFromTs(lastTs)}</div></div>
+    </div>
+  </div>`;
+}
+
+function buildBlocSynthese(pF, dF, pPrev, dPrev) {
+  const pOk = pF.filter(s => s.vF === 'ok').length;
+  const pErr = pF.filter(s => s.vF === 'err').length;
+  const detKo = dF.filter(d => d.vF !== 'ok').length;
+  const conform = pF.length ? Math.round((pOk / pF.length) * 100) : null;
+  const conformPrev = pPrev.length ? Math.round((pPrev.filter(s => s.vF === 'ok').length / pPrev.length) * 100) : null;
+  const lotsTrend = dashPeriod ? trendBadge(pF.length, pPrev.length, false, '') : '';
+  const confTrend = dashPeriod ? trendBadge(conform, conformPrev, false, ' pt') : '';
+  const tu2 = pF.reduce((acc, s) => acc + (parseInt(s.tu2) || 0), 0);
+  const tu2Prev = pPrev.reduce((acc, s) => acc + (parseInt(s.tu2) || 0), 0);
+  const detKoPrev = dPrev.filter(d => d.vF !== 'ok').length;
+  const qualityColor = pctColor(conform);
+
+  return `<div class="dash-block">
+    ${blockHeader(ICONS.pilotage, 'Synthèse de pilotage', dashPeriod ? `${dashPeriod} jours` : 'toute la période')}
+    <div class="kpi-grid kpi-grid-4">
+      ${kpiCard(qualityColor || 'blue', ICONS.taux, conform !== null ? conform + '%' : '—', qualityColor || '', 'Conformité pesées', confTrend)}
+      ${kpiCard(tu2 > 0 ? 'red' : 'green', ICONS.tu2, tu2, tu2 > 0 ? 'red' : 'green', 'Défauts TU2', dashPeriod ? trendBadge(tu2, tu2Prev, true, '') : '')}
+      ${kpiCard(detKo > 0 ? 'red' : 'green', ICONS.detector, detKo, detKo > 0 ? 'red' : 'green', 'Détecteur NOK', dashPeriod ? trendBadge(detKo, detKoPrev, true, '') : '')}
+      ${kpiCard('blue', ICONS.scale, pF.length, '', 'Lots contrôlés', lotsTrend)}
+    </div>
+    <div class="dash-two-col">
+      ${buildBlocActiviteMini(pF, dF, pPrev, dPrev)}
+      ${buildBlocConformiteMini(pF, dF, pPrev, dPrev, pErr)}
+    </div>
+  </div>`;
+}
+
+function buildBlocActiviteMini(pF, dF, pPrev, dPrev) {
+  const all = [...pF, ...dF];
+  const timestamps = all.map(s => parseFRDate(s.date || s.now)).filter(t => !isNaN(t));
+  const lastTs = timestamps.length ? Math.max(...timestamps) : NaN;
+  const sparkDays = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    sparkDays.push({ key:d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'}), label:d.toLocaleDateString('fr-FR', {weekday:'short'}).slice(0,2), p:[], d:[] });
+  }
+  pF.forEach(s => {
+    const raw = (s.date || '').replace(',','').split(' ')[0];
+    const idx = sparkDays.findIndex(d => d.key === raw);
+    if (idx >= 0) sparkDays[idx].p.push(s);
+  });
+  dF.forEach(s => {
+    const raw = (s.date || s.now || '').replace(',','').split(' ')[0];
+    const idx = sparkDays.findIndex(d => d.key === raw);
+    if (idx >= 0) sparkDays[idx].d.push(s);
+  });
+  const maxCount = Math.max(...sparkDays.map(d => d.p.length + d.d.length), 1);
+  const sparkBars = sparkDays.map(d => {
+    const n = d.p.length + d.d.length;
+    const hasErr = d.p.some(s => s.vF === 'err') || d.d.some(s => s.vF !== 'ok');
+    const hasWarn = d.p.some(s => s.vF === 'warn');
+    const cl = n === 0 ? 'empty' : hasErr ? 'err' : hasWarn ? 'warn' : 'ok';
+    const h = n === 0 ? 6 : Math.max(8, Math.round(n / maxCount * 48));
+    return `<div class="sl-bar-wrap"><div class="sl-bar ${cl}" style="height:${h}px"></div><div class="sl-lbl">${d.label}</div></div>`;
+  }).join('');
+  const comp = Math.round((sparkDays.filter(d => d.p.length + d.d.length > 0).length / 7) * 100);
+
+  return `<div class="dash-list-card">
+    <div class="dash-list-title">Activité</div>
+    <div class="kpi-label">Dernière activité : <strong style="color:var(--text-primary)">${relativeFromTs(lastTs)}</strong></div>
+    <div class="kpi-label" style="margin-top:6px">Tests détecteur : <strong style="color:var(--text-primary)">${dF.length}</strong> ${dashPeriod ? `${trendBadge(dF.length, dPrev.length, false, '')}` : ''}</div>
+    <div class="kpi-label" style="margin-top:6px">Complétion 7 jours : <strong style="color:var(--text-primary)">${comp}%</strong></div>
+    <div class="sparkline-wrap" style="margin-top:10px; margin-bottom:0"><div class="sl-title">Activité journalière</div><div class="sl-bars">${sparkBars}</div></div>
+  </div>`;
+}
+
+function buildBlocConformiteMini(pF, dF, pPrev, dPrev, pErr) {
+  const pOk = pF.filter(s => s.vF === 'ok').length;
+  const pWarn = pF.filter(s => s.vF === 'warn').length;
+  const dOk = dF.filter(d => d.vF === 'ok').length;
+  const dErr = dF.filter(d => d.vF !== 'ok').length;
+  const tu1Total = pF.reduce((acc, s) => acc + (parseInt(s.tu1) || 0), 0);
+  const tu2Total = pF.reduce((acc, s) => acc + (parseInt(s.tu2) || 0), 0);
+  const pConform = pF.length ? Math.round((pOk / pF.length) * 100) : 0;
+  const dConform = dF.length ? Math.round((dOk / dF.length) * 100) : 0;
+  const pPrevConform = pPrev.length ? Math.round((pPrev.filter(s => s.vF === 'ok').length / pPrev.length) * 100) : 0;
+  const dPrevConform = dPrev.length ? Math.round((dPrev.filter(s => s.vF === 'ok').length / dPrev.length) * 100) : 0;
+  return `<div class="dash-list-card">
+    <div class="dash-list-title">Conformité</div>
+    ${pF.length ? conformBar('Pesées', pConform, `${pOk} conformes · ${pWarn} à vérifier · ${pErr} non conformes`, pctColor(pConform), dashPeriod ? trendBadge(pConform, pPrevConform, false, ' pt') : '') : '<div class="dash-empty-mini">Aucune pesée sur la période.</div>'}
+    ${dF.length ? `<div style="height:8px"></div>${conformBar('Détecteur', dConform, `${dOk} réussis · ${dErr} échoués`, pctColor(dConform), dashPeriod ? trendBadge(dConform, dPrevConform, false, ' pt') : '')}` : ''}
+    <div class="kpi-label" style="margin-top:10px">TU1 : <strong style="color:var(--orange-text)">${tu1Total}</strong> · TU2 : <strong style="color:var(--red-text)">${tu2Total}</strong></div>
+  </div>`;
+}
+
+function buildBlocActions(pF, dF) {
+  const actions = [];
+  const lotsWarn = pF.filter(s => s.vF === 'warn');
+  const lotsErr = pF.filter(s => s.vF === 'err');
+  const detErr = dF.filter(d => d.vF !== 'ok');
+
+  lotsErr.slice(0, 3).forEach(s => actions.push({ type:'err', title:`TU2 – ${s.prod}`, meta:`Lot ${s.of} · ${s.cli} · ${s.date}`, action:'Voir pesées', go:'pesees' }));
+  lotsWarn.slice(0, 2).forEach(s => actions.push({ type:'warn', title:`À analyser – ${s.prod}`, meta:`Lot ${s.of} · ${s.op} · ${s.date}`, action:'Voir pesées', go:'pesees' }));
+  detErr.slice(0, 3).forEach(d => actions.push({ type:'err', title:`Détecteur NOK – ${d.eq}`, meta:`${d.type} · ${d.op} · ${d.date || d.now}`, action:'Voir détecteur', go:'det' }));
+
+  const prodRisk = {};
+  pF.forEach(s => {
+    if (!prodRisk[s.prod]) prodRisk[s.prod] = { nc:0, total:0 };
+    prodRisk[s.prod].total++; if (s.vF !== 'ok') prodRisk[s.prod].nc++;
+  });
+  const prodRows = Object.entries(prodRisk)
+    .filter(([,v]) => v.nc > 0)
+    .sort((a,b) => b[1].nc - a[1].nc)
+    .slice(0,3)
+    .map(([prod,v], i) => `<div class="prod-row"><div class="pr-rank">#${i+1}</div><div class="pr-info"><div class="pr-name">${prod}</div><div class="pr-meta">${v.nc} NC sur ${v.total} lot${v.total>1?'s':''}</div></div><span class="pr-badge ${Math.round(v.nc/v.total*100) >= 50 ? 'err':'warn'}">${Math.round(v.nc/v.total*100)}% NC</span></div>`).join('');
+
+  const alertHTML = actions.length ? actions.map(a => `
+    <div class="alert-item ${a.type}">
+      <div class="alert-svg-icon">${a.type === 'warn' ? ICONS.tu1 : ICONS.tu2}</div>
+      <div class="alert-body">
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-meta">${a.meta}</div>
+        <div class="alert-actions">
+          <button class="alert-btn" onclick="dashGoHistory('${a.go}')">${a.action}</button>
+          <button class="alert-btn secondary" onclick="generatePDFV2()">Générer Rapport PDF</button>
+        </div>
+      </div>
+    </div>`).join('') : `<div class="alert-item info"><div class="alert-svg-icon">${ICONS.check}</div><div class="alert-body"><div class="alert-title">Aucune action requise</div><div class="alert-meta">Tous les indicateurs sont sous contrôle sur la période filtrée.</div></div></div>`;
+
+  return `<div class="dash-block">
+    ${blockHeader(ICONS.prio, 'Alertes et actions', actions.length ? `${actions.length} action${actions.length>1?'s':''}` : 'RAS')}
+    ${alertHTML}
+    <div class="dash-section-title" style="margin-top:12px">Top produits à risque</div>
+    ${prodRows || '<div class="dash-empty-mini">Aucun produit en dérive sur la période sélectionnée.</div>'}
+  </div>`;
+}
+
+function buildBlocSync(pF, dF) {
+  const items = [...pF, ...dF];
+  const pending = items.filter(i => i.synced === false).length;
+  const syncedItems = items.filter(i => i.synced !== false);
+  const lastSyncedTs = Math.max(0, ...syncedItems.map(i => parseFRDate(i.date || i.now)).filter(t => !isNaN(t)));
+  const sourceTs = Math.max(0, ...items.map(i => parseFRDate(i.date || i.now)).filter(t => !isNaN(t)));
+  return `<div class="dash-block">
+    ${blockHeader(ICONS.cloud, 'Synchronisation', pending > 0 ? 'à surveiller' : 'à jour')}
+    <div class="sync-grid">
+      <div class="sync-card"><div class="sync-label">Dernière remontée</div><div class="sync-value">${lastSyncedTs ? relativeFromTs(lastSyncedTs) : 'Aucune'}</div></div>
+      <div class="sync-card"><div class="sync-label">En attente</div><div class="sync-value">${pending}</div></div>
+      <div class="sync-card full"><div class="sync-label">Dernière activité locale</div><div class="sync-value">${sourceTs ? relativeFromTs(sourceTs) : '—'}</div></div>
+    </div>
+  </div>`;
+}
+
+function dashGoHistory(type) {
+  const btn = document.getElementById('nav-historique');
+  showScreen('historique', btn);
+  filterHist(type === 'det' ? 'det' : 'pesees');
+}
+
+
+function buildDashboardTrendSeries(pItems) {
+  const spanDays = dashPeriod || 30;
+  const totalDays = Math.max(7, Math.min(spanDays, 30));
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const series = [];
+  for (let i = totalDays - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toLocaleDateString('fr-CA');
+    series.push({
+      key,
+      label: d.toLocaleDateString('fr-FR', totalDays <= 14 ? { day:'2-digit', month:'2-digit' } : { day:'2-digit', month:'2-digit' }),
+      items: []
+    });
+  }
+  pItems.forEach(item => {
+    const ts = parseFRDate(item.date || item.now);
+    if (isNaN(ts)) return;
+    const key = new Date(ts).toLocaleDateString('fr-CA');
+    const found = series.find(s => s.key === key);
+    if (found) found.items.push(item);
+  });
+  return {
+    conformity: series.map(s => {
+      const ok = s.items.filter(i => i.vF === 'ok').length;
+      return {
+        label: s.label,
+        value: s.items.length ? Math.round((ok / s.items.length) * 100) : null
+      };
+    }),
+    tu2: series.map(s => ({
+      label: s.label,
+      value: s.items.reduce((acc, i) => acc + (parseInt(i.tu2) || 0), 0)
+    }))
+  };
+}
+
+function getDashboardExportData() {
+  const pBase = filterByPeriod(sessions, dashPeriod);
+  const dBase = filterByPeriod(dets, dashPeriod);
+  const pPrevBase = filterPrevPeriod(sessions, dashPeriod);
+  const dPrevBase = filterPrevPeriod(dets, dashPeriod);
+  const { p, d } = applyDashFilters(pBase, dBase);
+  const { p: pPrev, d: dPrev } = applyDashFilters(pPrevBase, dPrevBase);
+
+  const tu1 = p.reduce((acc, s) => acc + (parseInt(s.tu1) || 0), 0);
+  const tu2 = p.reduce((acc, s) => acc + (parseInt(s.tu2) || 0), 0);
+  const pOk = p.filter(s => s.vF === 'ok').length;
+  const pWarn = p.filter(s => s.vF === 'warn').length;
+  const pErr = p.filter(s => s.vF === 'err').length;
+  const dOk = d.filter(x => x.vF === 'ok').length;
+  const dErr = d.filter(x => x.vF !== 'ok').length;
+  const pConf = p.length ? Math.round((pOk / p.length) * 100) : 0;
+  const dConf = d.length ? Math.round((dOk / d.length) * 100) : 0;
+  const pPrevConf = pPrev.length ? Math.round((pPrev.filter(s => s.vF === 'ok').length / pPrev.length) * 100) : null;
+  const dPrevConf = dPrev.length ? Math.round((dPrev.filter(x => x.vF === 'ok').length / dPrev.length) * 100) : null;
+  const detKo = dErr;
+  let status = { level:'ok', chip:'Conforme', title:'Production maîtrisée', subtitle:'Aucune alerte critique détectée sur la période sélectionnée.' };
+  if (tu2 > 0 || detKo > 0) {
+    status = { level:'err', chip:'Non conforme', title:'Action prioritaire requise', subtitle:`${tu2} défaut${tu2 > 1 ? 's' : ''} TU2 et ${detKo} test${detKo > 1 ? 's' : ''} détecteur NOK sur la période.` };
+  } else if (tu1 > 0) {
+    status = { level:'warn', chip:'À surveiller', title:'Dérives à analyser', subtitle:`${tu1} défaut${tu1 > 1 ? 's' : ''} TU1 détecté${tu1 > 1 ? 's' : ''}. Revue qualité conseillée.` };
+  }
+
+  const alerts = [];
+  p.filter(s => s.vF === 'err').slice(0, 8).forEach(s => alerts.push({
+    date: s.date || '—',
+    produit: s.prod || '—',
+    lot: s.of || '—',
+    type: 'TU2',
+    statut: 'À analyser',
+    responsable: '—',
+    action: `Contrôle pondéral non conforme (${parseInt(s.tu2) || 0} TU2).`
+  }));
+  p.filter(s => s.vF === 'warn').slice(0, 8 - alerts.length).forEach(s => alerts.push({
+    date: s.date || '—',
+    produit: s.prod || '—',
+    lot: s.of || '—',
+    type: 'TU1',
+    statut: 'À surveiller',
+    responsable: s.op || '—',
+    action: `Dérive à confirmer (${parseInt(s.tu1) || 0} TU1).`
+  }));
+  d.filter(x => x.vF !== 'ok').slice(0, 8 - alerts.length).forEach(x => alerts.push({
+    date: x.date || x.now || '—',
+    produit: x.eq || 'Détecteur',
+    lot: '—',
+    type: 'Détecteur NOK',
+    statut: 'À vérifier',
+    responsable: x.op || '—',
+    action: `${x.type || 'Test détecteur'} en échec.`
+  }));
+  if (!alerts.length) {
+    alerts.push({ date:'—', produit:'Aucune alerte', lot:'—', type:'RAS', statut:'Traité', responsable:'—', action:'Aucune non-conformité détectée sur la période sélectionnée.' });
+  }
+
+  const topRisks = Object.entries(p.reduce((acc, s) => {
+    const key = s.prod || 'Produit non renseigné';
+    if (!acc[key]) acc[key] = { total:0, nc:0, tu2:0 };
+    acc[key].total += 1;
+    if (s.vF !== 'ok') acc[key].nc += 1;
+    acc[key].tu2 += parseInt(s.tu2) || 0;
+    return acc;
+  }, {})).sort((a,b) => (b[1].tu2 + b[1].nc) - (a[1].tu2 + a[1].nc)).slice(0,5);
+
+  return {
+    p, d, pPrev, dPrev, status,
+    stats: {
+      tu1, tu2, pOk, pWarn, pErr, dOk, dErr, pConf, dConf, pPrevConf, dPrevConf,
+      lots: p.length, tests: d.length,
+      completion: Math.round((Math.min(7, [...new Set([...p, ...d].map(x => (x.date || x.now || '').split(' ')[0]).filter(Boolean))].length) / 7) * 100)
+    },
+    alerts,
+    topRisks,
+    trends: buildDashboardTrendSeries(p),
+    filtersText: {
+      periode: dashPeriod ? `${dashPeriod} jours` : 'Tout historique',
+      client: dashFilters.client || 'Tous les clients',
+      produit: dashFilters.product || 'Tous les produits',
+      statut: dashFilters.status === 'all' ? 'Tous statuts' : dashFilters.status === 'ok' ? 'Conforme' : dashFilters.status === 'warn' ? 'À surveiller' : 'Non conforme'
+    }
+  };
+}
+
+function pdfV2Theme() {
+  return {
+    green: [34, 139, 90],
+    orange: [245, 158, 11],
+    red: [220, 38, 38],
+    blue: [30, 64, 175],
+    navy: [15, 23, 42],
+    sky: [59, 130, 246],
+    text: [31, 41, 55],
+    muted: [107, 114, 128],
+    border: [226, 232, 240],
+    borderStrong: [203, 213, 225],
+    bgSoft: [248, 250, 252],
+    bgAlt: [241, 245, 249],
+    white: [255, 255, 255]
+  };
+}
+
+function pdfStatusColor(level, theme) {
+  return level === 'err' ? theme.red : level === 'warn' ? theme.orange : theme.green;
+}
+
+function pdfSetFill(doc, arr) { doc.setFillColor(arr[0], arr[1], arr[2]); }
+function pdfSetText(doc, arr) { doc.setTextColor(arr[0], arr[1], arr[2]); }
+function pdfSetDraw(doc, arr) { doc.setDrawColor(arr[0], arr[1], arr[2]); }
+
+function pdfCard(doc, x, y, w, h, fill, border, radius) {
+  pdfSetFill(doc, fill);
+  pdfSetDraw(doc, border);
+  doc.roundedRect(x, y, w, h, radius || 3, radius || 3, 'FD');
+}
+
+function pdfSafeCircle(doc, x, y, r, style) {
+  if (doc && typeof doc.circle === 'function') {
+    doc.circle(x, y, r, style || 'S');
+    return;
+  }
+  if (doc && typeof doc.ellipse === 'function') {
+    doc.ellipse(x, y, r, r, style || 'S');
+    return;
+  }
+  pdfSetDraw(doc, pdfV2Theme().text);
+  if ((style || 'S') === 'F') pdfSetFill(doc, pdfV2Theme().text);
+  doc.roundedRect(x - r, y - r, r * 2, r * 2, r, r, style || 'S');
+}
+
+
+const _pdfBrandAssets = { logo:null, picto:null, loaded:false };
+
+async function loadImageAsDataURL(src) {
+  const candidates = Array.isArray(src) ? src : [src];
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/jpeg', 0.92));
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.onerror = () => reject(new Error('Image introuvable: ' + candidate));
+        img.src = candidate;
+      });
+
+      if (dataUrl) return dataUrl;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  throw lastError || new Error('Image introuvable');
+}
+
+async function ensurePdfBrandAssets() {
+  if (_pdfBrandAssets.loaded) return _pdfBrandAssets;
+  try {
+    const [logo, picto] = await Promise.all([
+  loadImageAsDataURL(['./logo-codex.jpg']),
+  loadImageAsDataURL(['./picto-codex.jpg'])
+]);
+    _pdfBrandAssets.logo = logo;
+    _pdfBrandAssets.picto = picto;
+  } catch (e) {
+    console.warn('Assets PDF branding non chargés', e);
+  }
+  _pdfBrandAssets.loaded = true;
+  return _pdfBrandAssets;
+}
+
+function pdfPageHeader(doc, pageTitle, subtitle, pageNo) {
+  const theme = pdfV2Theme();
+  const assets = _pdfBrandAssets;
+
+  // Fond du header
+  pdfSetFill(doc, theme.white);
+  doc.rect(0, 0, 210, 42, 'F');
+
+  // Branding gauche
+  if (pageNo === 1 && assets.logo) {
+    try {
+      doc.addImage(assets.logo, 'JPEG', 14, 8, 38, 10);
+    } catch (e) {
+      console.warn('Logo PDF non ajouté', e);
+    }
+  } else if (assets.picto) {
+    try {
+      doc.addImage(assets.picto, 'JPEG', 14, 6, 12, 12);
+    } catch (e) {
+      console.warn('Picto PDF non ajouté', e);
+    }
+  }
+
+  // QUALPACK (titre principal)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  pdfSetText(doc, theme.navy);
+  doc.text('QUALPACK', 14, 24);
+
+  // Sous-titre métier
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  pdfSetText(doc, theme.muted);
+  doc.text('Rapport de suivi qualité & traçabilité', 14, 29.5);
+
+  // Pagination à droite
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  pdfSetText(doc, theme.text);
+  doc.text(pageTitle || '', 196, 16, { align: 'right' });
+
+  // Sous-titre de page (Synthèse, Activité, etc.)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  pdfSetText(doc, theme.text);
+  doc.text(subtitle || '', 14, 38);
+
+  // Ligne de séparation
+  pdfSetDraw(doc, theme.borderStrong);
+  doc.setLineWidth(0.5);
+  doc.line(14, 40.5, 196, 40.5);
+}
+
+function pdfSectionTitle(doc, y, title) {
+  const theme = pdfV2Theme();
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  pdfSetText(doc, theme.text);
+  doc.text(title, 14, y);
+}
+
+function pdfMetricCard(doc, x, y, w, h, label, value, accent, subtext) {
+  const theme = pdfV2Theme();
+  pdfCard(doc, x, y, w, h, theme.white, theme.border, 3);
+  pdfSetFill(doc, accent);
+  doc.roundedRect(x, y, 2.8, h, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  pdfSetText(doc, theme.text);
+  doc.text(String(value), x + 7, y + 13);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  pdfSetText(doc, theme.muted);
+  doc.text(label, x + 7, y + 21);
+  if (subtext) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    pdfSetText(doc, theme.muted);
+    const lines = doc.splitTextToSize(subtext, w - 12);
+    doc.text(lines.slice(0,2), x + 7, y + 28);
+  }
+}
+
+function pdfDrawLineChart(doc, x, y, w, h, title, series, color, options = {}) {
+  const theme = pdfV2Theme();
+  pdfCard(doc, x, y, w, h, theme.white, theme.border, 3);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  pdfSetText(doc, theme.text);
+  doc.text(title, x + 6, y + 9);
+
+  const chartX = x + 10, chartY = y + 18, chartW = w - 18, chartH = h - 32;
+  pdfSetDraw(doc, theme.border);
+  doc.line(chartX, chartY, chartX, chartY + chartH);
+  doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH);
+
+  const vals = series.map(s => s.value).filter(v => v !== null && !isNaN(v));
+  const maxVal = options.maxValue || Math.max(...vals, 1);
+  const minVal = options.minValue != null ? options.minValue : 0;
+
+  [0, 0.5, 1].forEach(step => {
+    const py = chartY + chartH - (chartH * step);
+    pdfSetDraw(doc, theme.border);
+    doc.line(chartX, py, chartX + chartW, py);
+  });
+
+  const usable = series.length > 1 ? series.length - 1 : 1;
+  let prev = null;
+  series.forEach((pt, idx) => {
+    if (pt.value === null || isNaN(pt.value)) return;
+    const px = chartX + (idx / usable) * chartW;
+    const ratio = maxVal === minVal ? 0 : (pt.value - minVal) / (maxVal - minVal);
+    const py = chartY + chartH - (ratio * chartH);
+    if (prev) {
+      doc.setDrawColor(color[0], color[1], color[2]);
+      doc.setLineWidth(0.8);
+      doc.line(prev.x, prev.y, px, py);
+    }
+    pdfSetFill(doc, color);
+    pdfSafeCircle(doc, px, py, 1.2, 'F');
+    prev = { x:px, y:py };
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  pdfSetText(doc, theme.muted);
+  const labelStep = series.length > 12 ? 3 : series.length > 8 ? 2 : 1;
+  series.forEach((pt, idx) => {
+    if (idx % labelStep !== 0 && idx !== series.length - 1) return;
+    const px = chartX + (idx / usable) * chartW;
+    doc.text(pt.label, px, chartY + chartH + 5, { align:'center' });
+  });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  pdfSetText(doc, theme.text);
+  const lastVal = vals.length ? vals[vals.length - 1] : 0;
+  const suffix = options.suffix || '';
+  doc.text(`Dernière valeur : ${lastVal}${suffix}`, x + w - 6, y + 9, { align:'right' });
+}
+
+function pdfEnsureSpace(doc, y, needed) {
+  if (y + needed <= 280) return y;
+  doc.addPage();
+  return 18;
+}
+
+function pdfDrawAlertTable(doc, y, alerts) {
+  const theme = pdfV2Theme();
+  const cols = [14, 34, 72, 108, 132, 156, 176];
+  const headers = ['Date', 'Produit / équipement', 'Lot', 'Type', 'Statut', 'Resp.', 'Action'];
+  pdfSectionTitle(doc, y, 'Alertes et non-conformités');
+  y += 8;
+  pdfCard(doc, 14, y, 182, 10, theme.bgSoft, theme.border, 2);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  pdfSetText(doc, theme.text);
+  headers.forEach((h, i) => doc.text(h, cols[i] + 1, y + 6.4));
+  y += 12;
+
+  alerts.forEach(alert => {
+    const lines = {
+      date: doc.splitTextToSize(alert.date || '—', 18),
+      produit: doc.splitTextToSize(alert.produit || '—', 36),
+      lot: doc.splitTextToSize(alert.lot || '—', 22),
+      type: doc.splitTextToSize(alert.type || '—', 22),
+      statut: doc.splitTextToSize(alert.statut || '—', 22),
+      resp: doc.splitTextToSize(alert.responsable || '—', 16),
+      action: doc.splitTextToSize(alert.action || '—', 18)
+    };
+    const rowH = Math.max(10, Math.max(...Object.values(lines).map(arr => arr.length)) * 4.2 + 4);
+    if (y + rowH > 280) {
+      doc.addPage();
+      pdfPageHeader(doc, 'Page 3/4', 'Alertes', 3);
+      y = 34;
+      pdfCard(doc, 14, y, 182, 10, theme.bgSoft, theme.border, 2);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      pdfSetText(doc, theme.text);
+      headers.forEach((h, i) => doc.text(h, cols[i] + 1, y + 6.4));
+      y += 12;
+    }
+    pdfCard(doc, 14, y, 182, rowH, theme.white, theme.border, 2);
+    const statusColor = (alert.type === 'TU2' || /NOK/i.test(alert.type)) ? theme.red : (alert.type === 'TU1' ? theme.orange : theme.green);
+    pdfSetFill(doc, statusColor);
+    doc.roundedRect(14, y, 2.6, rowH, 2, 2, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    pdfSetText(doc, theme.text);
+    doc.text(lines.date, cols[0] + 1, y + 5);
+    doc.text(lines.produit, cols[1] + 1, y + 5);
+    doc.text(lines.lot, cols[2] + 1, y + 5);
+    doc.text(lines.type, cols[3] + 1, y + 5);
+    doc.text(lines.statut, cols[4] + 1, y + 5);
+    doc.text(lines.resp, cols[5] + 1, y + 5);
+    doc.text(lines.action, cols[6] + 1, y + 5);
+    y += rowH + 3;
+  });
+  return y;
+}
+
+function pdfDrawTopRisks(doc, y, topRisks) {
+  const theme = pdfV2Theme();
+  pdfSectionTitle(doc, y, 'Produits les plus exposés');
+  y += 8;
+  if (!topRisks.length) {
+    pdfCard(doc, 14, y, 182, 12, theme.white, theme.border, 2);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.muted);
+    doc.text('Aucun produit en dérive sur la période sélectionnée.', 18, y + 7.5);
+    return y + 16;
+  }
+  topRisks.forEach(([prod, v], idx) => {
+    const rowH = 14;
+    if (y + rowH > 280) { doc.addPage(); pdfPageHeader(doc, 'Page 4/4', 'Annexe', 4); y = 34; }
+    pdfCard(doc, 14, y, 182, rowH, theme.white, theme.border, 2);
+    const riskPct = v.total ? Math.round((v.nc / v.total) * 100) : 0;
+    const accent = riskPct >= 50 || v.tu2 > 0 ? theme.red : theme.orange;
+    pdfSetFill(doc, accent); doc.roundedRect(14, y, 2.6, rowH, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); pdfSetText(doc, theme.text);
+    doc.text(`#${idx + 1}  ${prod}`, 19, y + 5.7);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.2); pdfSetText(doc, theme.muted);
+    doc.text(`${v.nc} NC sur ${v.total} lot(s) · ${v.tu2} TU2`, 19, y + 10.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); pdfSetText(doc, accent);
+    doc.text(`${riskPct}% NC`, 188, y + 8, { align:'right' });
+    y += rowH + 3;
+  });
+  return y;
+}
+
+async function genDashboardPDF() {
+  await window._libsReady;
+  if (typeof window.jspdf === 'undefined') { toast('Librairie PDF indisponible', 'err'); return; }
+  const { jsPDF } = window.jspdf;
+  await ensurePdfBrandAssets();
+  const data = getDashboardExportData();
+  const theme = pdfV2Theme();
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  doc.setFont('helvetica', 'normal');
+  pdfSetText(doc, theme.text);
+
+  // Page 1 — synthèse
+  pdfPageHeader(doc, 'Page 1/4', 'Synthèse', 1);
+  let y = 34;
+  pdfCard(doc, 14, y, 182, 20, theme.bgSoft, theme.border, 3);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); pdfSetText(doc, theme.text);
+  doc.text('Périmètre du rapport', 18, y + 7);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  pdfSetText(doc, theme.muted);
+  doc.text(`Période : ${data.filtersText.periode}`, 18, y + 13);
+  doc.text(`Client : ${data.filtersText.client}`, 78, y + 13);
+  doc.text(`Produit : ${data.filtersText.produit}`, 18, y + 18);
+  doc.text(`Statut : ${data.filtersText.statut}`, 78, y + 18);
+  y += 26;
+
+  const statusColor = pdfStatusColor(data.status.level, theme);
+  pdfCard(doc, 14, y, 182, 24, theme.white, theme.border, 3);
+  pdfSetFill(doc, statusColor); doc.roundedRect(14, y, 3.2, 24, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); pdfSetText(doc, statusColor);
+  doc.text(`STATUT GLOBAL : ${data.status.chip.toUpperCase()}`, 21, y + 8);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); pdfSetText(doc, theme.text);
+  doc.text(data.status.title, 21, y + 15);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.muted);
+  doc.text(doc.splitTextToSize(data.status.subtitle, 165), 21, y + 20);
+  y += 30;
+
+  const gap = 4, cardW = (182 - gap*3) / 4;
+  pdfMetricCard(doc, 14, y, cardW, 28, 'Conformité pesées', `${data.stats.pConf}%`, data.stats.pConf >= 95 ? theme.green : data.stats.pConf >= 90 ? theme.orange : theme.red, `Période précédente : ${data.stats.pPrevConf == null ? '—' : data.stats.pPrevConf + '%'}`);
+  pdfMetricCard(doc, 14 + cardW + gap, y, cardW, 28, 'Défauts TU2', data.stats.tu2, data.stats.tu2 > 0 ? theme.red : theme.green, `${data.stats.pErr} lot(s) non conformes`);
+  pdfMetricCard(doc, 14 + (cardW + gap)*2, y, cardW, 28, 'Détecteur NOK', data.stats.dErr, data.stats.dErr > 0 ? theme.red : theme.green, `Conformité détecteur : ${data.stats.dConf}%`);
+  pdfMetricCard(doc, 14 + (cardW + gap)*3, y, cardW, 28, 'Lots contrôlés', data.stats.lots, theme.blue, `${data.stats.tests} test(s) détecteur`);
+  y += 36;
+
+  pdfSectionTitle(doc, y, 'Activité et conformité');
+  y += 8;
+  pdfCard(doc, 14, y, 87, 24, theme.white, theme.border, 3);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); pdfSetText(doc, theme.text);
+  doc.text('Activité', 18, y + 8);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.muted);
+  doc.text(`Lots contrôlés : ${data.stats.lots}`, 18, y + 15);
+  doc.text(`Tests détecteur : ${data.stats.tests}`, 18, y + 20);
+  doc.text(`Complétion 7 jours : ${data.stats.completion}%`, 58, y + 15);
+  doc.text(`Pesées conformes : ${data.stats.pOk}`, 58, y + 20);
+
+  pdfCard(doc, 109, y, 87, 24, theme.white, theme.border, 3);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); pdfSetText(doc, theme.text);
+  doc.text('Lecture qualité', 113, y + 8);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.muted);
+  doc.text(`TU1 : ${data.stats.tu1}`, 113, y + 15);
+  doc.text(`TU2 : ${data.stats.tu2}`, 113, y + 20);
+  doc.text(`Détecteur OK : ${data.stats.dOk}`, 151, y + 15);
+  doc.text(`Détecteur NOK : ${data.stats.dErr}`, 151, y + 20);
+
+  // Page 2 — tendances
+  doc.addPage();
+  pdfPageHeader(doc, 'Page 2/4', 'Tendances', 2);
+  pdfDrawLineChart(doc, 14, 34, 182, 78, 'Évolution de la conformité pesées', data.trends.conformity, theme.green, { minValue:0, maxValue:100, suffix:'%' });
+  pdfDrawLineChart(doc, 14, 122, 182, 78, 'Évolution des TU2', data.trends.tu2, theme.red, { minValue:0, suffix:'' });
+  let y2 = 212;
+  pdfSectionTitle(doc, y2, 'Lecture rapide');
+  y2 += 8;
+  pdfCard(doc, 14, y2, 182, 28, theme.bgSoft, theme.border, 3);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.text);
+  const trendNote = [
+    `Le graphique conformité reprend les données de pesées du périmètre filtré (${data.filtersText.periode.toLowerCase()}).`,
+    `Le graphique TU2 met en évidence les journées avec défaut(s) critique(s) TU2.`,
+    `Ce rapport peut être présenté à un auditeur ou à la direction comme synthèse documentaire.`
+  ];
+  doc.text(trendNote, 18, y2 + 8);
+
+  // Page 3 — alertes
+  doc.addPage();
+  pdfPageHeader(doc, 'Page 3/4', 'Alertes', 3);
+  let y3 = 34;
+  y3 = pdfDrawAlertTable(doc, y3, data.alerts);
+
+  // Page 4 — annexe / top risques
+  doc.addPage();
+  pdfPageHeader(doc, 'Page 4/4', 'Annexe', 4);
+  let y4 = 34;
+  y4 = pdfDrawTopRisks(doc, y4, data.topRisks);
+  y4 += 6;
+  pdfCard(doc, 14, y4, 182, 20, theme.white, theme.border, 3);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.text);
+  doc.text(`Document généré automatiquement par QualPack.`, 18, y4 + 8);
+  doc.text(`Usage recommandé : support revue qualité, audit interne, présentation direction.`, 18, y4 + 14);
+
+  doc.save('qualpack_dashboard_v81_rapport.pdf');
+}
+
+function renderDashboard() {
+  const body = document.getElementById('dash-body');
+  const dateEl = document.getElementById('dash-date');
+  populateDashFilters();
+  dateEl.textContent = new Date().toLocaleDateString('fr-FR', { weekday:'short', day:'numeric', month:'short' });
+
+  const pBase = filterByPeriod(sessions, dashPeriod);
+  const dBase = filterByPeriod(dets, dashPeriod);
+  const pPrevBase = filterPrevPeriod(sessions, dashPeriod);
+  const dPrevBase = filterPrevPeriod(dets, dashPeriod);
+  const { p: pF, d: dF } = applyDashFilters(pBase, dBase);
+  const { p: pPrev, d: dPrev } = applyDashFilters(pPrevBase, dPrevBase);
+
+  if (!pF.length && !dF.length) {
+    body.innerHTML = `<div class="empty-dash"><div class="ed-icon">📊</div><div class="ed-title">Aucune donnée sur la période</div><div class="ed-sub">Élargis la période ou enlève les filtres pour afficher le dashboard.</div></div>`;
+    return;
+  }
+
+  body.innerHTML =
+    buildStatusHero(pF, dF) +
+    buildBlocSynthese(pF, dF, pPrev, dPrev) +
+    buildBlocActions(pF, dF) +
+    buildBlocSync(pF, dF) +
+    '<div style="height:16px"></div>';
+}
+
+/* ================================================================
+   ADMINISTRATION — PIN & ÉCRAN ADMIN
+   ================================================================ */
+
+const ADMIN_PIN_KEY = 'qp_admin_pin';
+const DEFAULT_PIN   = '1234';
+
+/* Récupère le PIN stocké (ou le défaut) */
+function getAdminPin() {
+  return localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN;
+}
+
+/* ── OVERLAY PIN ── */
+let _pinBuffer = '';
+let _pinTarget  = null; // callback si PIN validé
+
+function showPinOverlay() {
+  _pinBuffer = '';
+  updatePinDots();
+  document.getElementById('pin-error-msg').textContent = '';
+  document.getElementById('pin-overlay').classList.remove('hidden');
+}
+
+function hidePinOverlay() {
+  document.getElementById('pin-overlay').classList.add('hidden');
+  _pinBuffer = '';
+  updatePinDots();
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pd' + i);
+    dot.classList.remove('filled', 'error');
+    if (i < _pinBuffer.length) dot.classList.add('filled');
+  }
+}
+
+function pinKey(digit) {
+  if (_pinBuffer.length >= 4) return;
+  _pinBuffer += digit;
+  updatePinDots();
+  if (_pinBuffer.length === 4) {
+    setTimeout(validatePin, 120); // petit délai visuel
+  }
+}
+
+function pinDel() {
+  if (_pinBuffer.length > 0) {
+    _pinBuffer = _pinBuffer.slice(0, -1);
+    updatePinDots();
+    document.getElementById('pin-error-msg').textContent = '';
+  }
+}
+
+function pinCancel() {
+  hidePinOverlay();
+  // Remettre le focus sur l'onglet précédent actif
+  window._adminNavBtn = null;
+}
+
+function validatePin() {
+  if (_pinBuffer === getAdminPin()) {
+    hidePinOverlay();
+    // Accès accordé — ouvrir l'écran admin
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('screen-admin').classList.add('active');
+    if (window._adminNavBtn) window._adminNavBtn.classList.add('active');
+    // Rendre les listes admin
+    renderAdminCatalogue();
+    renderAdminOperateurs();
+  } else {
+    // Erreur — animer les dots en rouge
+    for (let i = 0; i < 4; i++) {
+      const dot = document.getElementById('pd' + i);
+      dot.classList.remove('filled');
+      dot.classList.add('error');
+    }
+    document.getElementById('pin-error-msg').textContent = 'Code incorrect — réessayez';
+    setTimeout(() => {
+      for (let i = 0; i < 4; i++) {
+        document.getElementById('pd' + i).classList.remove('error');
+      }
+      _pinBuffer = '';
+      updatePinDots();
+    }, 800);
+  }
+}
+
+/* ── CHANGEMENT DE PIN ── */
+function togglePinChangeForm() {
+  const form = document.getElementById('pin-change-form');
+  const isOpen = form.classList.contains('open');
+  form.classList.toggle('open');
+  if (!isOpen) {
+    // Reset champs à l'ouverture
+    document.getElementById('pin-current').value = '';
+    document.getElementById('pin-new1').value    = '';
+    document.getElementById('pin-new2').value    = '';
+    document.getElementById('pin-change-error').textContent = '';
+  }
+}
+
+function saveNewPin() {
+  const current = document.getElementById('pin-current').value.trim();
+  const new1    = document.getElementById('pin-new1').value.trim();
+  const new2    = document.getElementById('pin-new2').value.trim();
+  const errEl   = document.getElementById('pin-change-error');
+
+  if (current !== getAdminPin()) {
+    errEl.textContent = 'PIN actuel incorrect'; return;
+  }
+  if (new1.length !== 4 || !/^\d{4}$/.test(new1)) {
+    errEl.textContent = 'Le nouveau PIN doit contenir exactement 4 chiffres'; return;
+  }
+  if (new1 !== new2) {
+    errEl.textContent = 'Les deux PIN ne correspondent pas'; return;
+  }
+  localStorage.setItem(ADMIN_PIN_KEY, new1);
+  document.getElementById('pin-change-form').classList.remove('open');
+  errEl.textContent = '';
+  toast('PIN modifié avec succès ✓', 'ok');
+}
+
+function resetPinToDefault() {
+  if (!confirm('Remettre le PIN par défaut (1234) ?')) return;
+  localStorage.removeItem(ADMIN_PIN_KEY);
+  toast('PIN remis à 1234', 'ok');
+}
+
+
+/* ================================================================
+   V12 — CATALOGUE SUPABASE (clients, produits, opérateurs)
+   ================================================================ */
+
+const SB_URL = 'https://ktnfqhsuajrsvviszooa.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0bmZxaHN1YWpyc3Z2aXN6b29hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MDQzMzMsImV4cCI6MjA5MDk4MDMzM30.8Hid-R35NXLb8DTpYvOj34a9yvNoi4NlGLd2njfw0eY';
+const SB_HDR = {
+  'Content-Type': 'application/json',
+  'apikey': SB_KEY,
+  'Authorization': 'Bearer ' + SB_KEY
+};
+
+/* ── Formule réglementaire TNE ── */
+function calcTNE(qn) {
+  if (qn <= 50)   return qn * 0.09;
+  if (qn <= 100)  return 4.5;
+  if (qn <= 200)  return qn * 0.045;
+  if (qn <= 300)  return 9;
+  if (qn <= 500)  return qn * 0.03;
+  if (qn <= 1000) return 15;
+  return qn * 0.015;
+}
+
+function calcSeuils(qn) {
+  const tne = Math.round(calcTNE(qn) * 10) / 10;
+  return {
+    qn:  qn,
+    tne: tne,
+    tu1: Math.round((qn - tne) * 10) / 10,
+    tu2: Math.round((qn - tne * 2) * 10) / 10
+  };
+
+}
+
+function getLocalOperateursCache() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('qp_operateurs') || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function saveLocalOperateursCache(items) {
+  localStorage.setItem('qp_operateurs', JSON.stringify(items || []));
+}
+
+function mergeOperateursLists(primary, secondary) {
+  const map = new Map();
+  [...(primary || []), ...(secondary || [])].forEach(op => {
+    if (!op || (!op.id && !op.nom)) return;
+    const key = op.id || String(op.nom).toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, { ...op });
+    } else {
+      map.set(key, { ...map.get(key), ...op });
+    }
+  });
+  return Array.from(map.values())
+    .filter(op => op.actif !== false)
+    .sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+}
+
+function upsertLocalOperateur(op) {
+  const current = getLocalOperateursCache();
+  const merged = mergeOperateursLists([op], current);
+  saveLocalOperateursCache(merged);
+  OPERATEURS = mergeOperateursLists([op], OPERATEURS);
+}
+
+function removeLocalOperateur(id) {
+  const current = getLocalOperateursCache().filter(op => op.id !== id);
+  saveLocalOperateursCache(current);
+  OPERATEURS = OPERATEURS.filter(op => op.id !== id);
+}
+
+/* ── Charger catalogue depuis Supabase ── */
+
+async function loadCatalogueFromSupabase() {
+  if (!navigator.onLine) return false;
+  try {
+    const rClients = await fetch(`${SB_URL}/rest/v1/clients?select=*&order=nom`, { headers: SB_HDR });
+    if (!rClients.ok) throw new Error('clients ' + rClients.status);
+    const clients = await rClients.json();
+
+    const rProds = await fetch(`${SB_URL}/rest/v1/produits?select=*&order=nom`, { headers: SB_HDR });
+    if (!rProds.ok) throw new Error('produits ' + rProds.status);
+    const prods = await rProds.json();
+
+    let lignes = [];
+    try {
+      const rLignes = await fetch(`${SB_URL}/rest/v1/lignes?select=*&order=nom`, { headers: SB_HDR });
+      if (rLignes.ok) {
+        lignes = await rLignes.json();
+      } else {
+        console.warn('lignes fetch ignored:', rLignes.status);
+      }
+    } catch (e) {
+      console.warn('lignes fetch exception ignored:', e);
+    }
+
+    const rOps = await fetch(`${SB_URL}/rest/v1/operateurs?select=*&actif=eq.true&order=nom`, {
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY
+      }
+    });
+
+    let ops = [];
+    if (rOps.ok) {
+      ops = await rOps.json();
+    } else {
+      console.warn('operateurs fetch ignored:', rOps.status);
+    }
+
+    const hasSupabaseCatalogue = Array.isArray(clients) && clients.length > 0 && Array.isArray(prods) && prods.length > 0;
+
+    if (hasSupabaseCatalogue) {
+      const nextCatalogue = {};
+      clients.forEach(c => { nextCatalogue[c.nom] = []; });
+
+      prods.forEach(p => {
+        const s = calcSeuils(parseFloat(p.qn));
+        const prod = {
+          id: p.id,
+          nom: p.nom,
+          qn: s.qn,
+          tu1: s.tu1,
+          tu2: s.tu2,
+          tne: s.tne,
+          ligne_prod: p.ligne_prod || '',
+          detecteur: p.detecteur || '',
+          of_planifies: p.of_planifies || ''
+        };
+
+        const cli = clients.find(c => c.id === p.client_id);
+        if (cli) {
+          if (!nextCatalogue[cli.nom]) nextCatalogue[cli.nom] = [];
+          nextCatalogue[cli.nom].push(prod);
+        }
+      });
+
+      if (Object.keys(nextCatalogue).length) {
+        CATALOGUE = sanitizeCatalogue(nextCatalogue);
+        localStorage.setItem('qp_catalogue', JSON.stringify(CATALOGUE));
+      }
+    } else {
+      console.warn('Catalogue Supabase vide, conservation du catalogue local');
+    }
+
+    OPERATEURS = mergeOperateursLists(ops, getLocalOperateursCache().length ? getLocalOperateursCache() : OPERATEURS);
+    if (!OPERATEURS.length) {
+      OPERATEURS = [
+        {id:'op1', nom:'Pierre', role:'Operateur'},
+        {id:'op2', nom:'Paul', role:'Operateur'},
+        {id:'op3', nom:'Jacques', role:'Operateur'}
+      ];
+    }
+    saveLocalOperateursCache(OPERATEURS);
+
+    mergeLineDetecteurMappings(prods || []);
+    mergeStoredDetecteurCatalogue((prods || []).map(p => String((p && p.detecteur) || '').trim()).filter(Boolean));
+    const fetchedLines = (lignes || []).map(l => String((l && (l.nom || l.nom_ligne || l.ligne_prod || l.ligne)) || '').trim()).filter(Boolean);
+    if (fetchedLines.length) mergeStoredLineCatalogue(fetchedLines);
+    populateClientSelect();
+    populateOpSelects();
+    populateLineSelect('inp-ligne');
+    populateLineSelect('d-ligne');
+    populateDetecteurSelect();
+    return true;
+  } catch(e) {
+    console.warn('loadCatalogue Supabase error:', e);
+    return false;
+  }
+}
+
+/* ── Charger depuis cache local (fallback offline) ── */
+function loadCatalogueFromCache() {
+  try {
+    const cat = localStorage.getItem('qp_catalogue');
+    const ops = localStorage.getItem('qp_operateurs');
+    getStoredLineCatalogue();
+    if (cat) CATALOGUE = sanitizeCatalogue(JSON.parse(cat));
+    if (ops) OPERATEURS = mergeOperateursLists(JSON.parse(ops), OPERATEURS);
+    // Fallback hardcodé si rien en cache
+    if (!Object.keys(CATALOGUE).length) {
+      CATALOGUE = {
+        'ALPHA': [
+          { id:'p1', nom:'POMME',  ...calcSeuils(200), ligne_prod:'', of_planifies:'' },
+          { id:'p4', nom:'FRAISE', ...calcSeuils(250), ligne_prod:'', of_planifies:'' }
+        ],
+        'BETA': [
+          { id:'p2', nom:'BANANE', ...calcSeuils(300), ligne_prod:'', of_planifies:'' }
+        ],
+        'OMEGA': [
+          { id:'p3', nom:'POIRE',  ...calcSeuils(500),  ligne_prod:'', of_planifies:'' },
+          { id:'p5', nom:'KIWI',   ...calcSeuils(1200), ligne_prod:'', of_planifies:'' }
+        ]
+      };
+    }
+    if (!OPERATEURS.length) {
+      OPERATEURS = [
+        {id:'op1', nom:'Pierre', role:'Operateur'},
+        {id:'op2', nom:'Paul',   role:'Operateur'},
+        {id:'op3', nom:'Jacques',role:'Operateur'}
+      ];
+    }
+  } catch(e) {
+    console.warn('loadCatalogueFromCache error:', e);
+  }
+}
+
+/* ── Peupler le select clients ── */
+function populateClientSelect() {
+  const sel = document.getElementById('sel-client');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">— Sélectionner un client —</option>';
+  Object.keys(CATALOGUE).sort().forEach(nom => {
+    sel.innerHTML += `<option value="${nom}">${nom}</option>`;
+  });
+  if (val) sel.value = val;
+}
+
+/* ── Peupler les selects opérateurs (pesées + détecteur) ── */
+function populateOpSelects() {
+  ['sel-op', 'd-op'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = '<option value="">— Sélectionner un opérateur —</option>';
+    OPERATEURS.forEach(op => {
+      sel.innerHTML += `<option value="${op.nom}">${op.nom}</option>`;
+    });
+    if (val) sel.value = val;
+  });
+}
+
+/* ── Initialisation catalogue au démarrage ── */
+async function initCatalogue() {
+  loadCatalogueFromCache();   // immédiat (offline-first)
+  CATALOGUE = sanitizeCatalogue(CATALOGUE);
+  populateClientSelect();
+  populateOpSelects();
+  populateLineSelect('inp-ligne');
+  populateLineSelect('d-ligne');
+  populateDetecteurSelect();
+  if (navigator.onLine) {
+    const ok = await loadCatalogueFromSupabase();
+    if (ok) console.log('Catalogue chargé depuis Supabase');
+  }
+}
+
+/* ================================================================
+   V12 — ADMIN : GESTION CLIENTS/PRODUITS/OPÉRATEURS
+   ================================================================ */
+
+/* ── Calcul TNE pour aperçu ── */
+function calcTNEdisplay(qn) {
+  const s = calcSeuils(qn);
+  return `TU1: ${s.tu1}g · TU2: ${s.tu2}g · TNE: ${s.tne}g`;
+}
+
+/* ── Import Excel/CSV produits ── */
+async function importProduitsExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  await window._libsReady;
+  if (typeof XLSX === 'undefined') { toast('Librairie XLSX non disponible', 'err'); return; }
+
+  try {
+    const wb = (typeof XLSX.readFile === 'function')
+      ? await XLSX.readFile(file, { type: 'array' })
+      : XLSX.read(await file.arrayBuffer(), { type: 'array' });
+
+    const norm = k => String(k || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '_');
+    const readSheet = (sheetName, range = null) => {
+      const target = wb.SheetNames.find(n => String(n || '').trim().toUpperCase() === String(sheetName || '').trim().toUpperCase());
+      if (!target) return [];
+      const ws = wb.Sheets[target];
+      if (!ws) return [];
+      const opts = { defval: '' };
+      if (range !== null) opts.range = range;
+      let rows = XLSX.utils.sheet_to_json(ws, opts);
+      if (!rows.length && range !== null) rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      return rows.map(r => {
+        const out = {};
+        Object.entries(r || {}).forEach(([k, v]) => { out[norm(k)] = v; });
+        return out;
+      });
+    };
+
+    const normalized = readSheet('IMPORT_APP', 4);
+    if (!normalized.length) { toast('Feuille IMPORT_APP introuvable ou vide', 'err'); return; }
+
+    const first = normalized[0] || {};
+    const hasClient  = 'CLIENT'  in first;
+    const hasProduit = 'PRODUIT' in first;
+    const hasQN      = 'QN_G' in first || 'QN' in first;
+    if (!hasClient || !hasProduit || !hasQN) {
+      toast('Colonnes requises : CLIENT, PRODUIT, QN_G', 'err'); return;
+    }
+
+    const preview = normalized.map(r => ({
+      client:      String(r.CLIENT   || '').trim(),
+      nom:         String(r.PRODUIT  || '').trim(),
+      qn:          parseFloat(r.QN_G || r.QN || 0),
+      ligne_prod:  String(r.LIGNE_PROD || r.LIGNE || '').trim(),
+      detecteur:   String(r.DETECTEUR || r.EQUIPEMENT || '').trim(),
+      of_planifies: String(r.OF_PLANIFIES || r.OF || '').trim()
+    })).filter(r => r.client && r.nom && r.qn > 0);
+
+    const lignesRows = readSheet('LIGNES', 3);
+    const explicitLines = lignesRows.map((r, idx) => ({
+      id: String(r.ID_LIGNE || r.ID || r.CODE || `L${idx+1}`).trim(),
+      nom: String(r.NOM_LIGNE || r.LIGNE_PROD || r.LIGNE || r.NOM || '').trim()
+    })).filter(r => r.nom);
+
+    const detRows = readSheet('DETECTEURS', 3);
+    const detecteurRefs = detRows.map((r, idx) => ({
+      id: String(r.ID_DETECTEUR || r.ID || `DET${idx+1}`).trim(),
+      detecteur: String(r.NOM_DETECTEUR || r.DETECTEUR || r.EQUIPEMENT || r.NOM || '').trim(),
+      ligne_prod: String(r.LIGNE_PROD || r.LIGNE || '').trim()
+    })).filter(r => r.detecteur || r.ligne_prod);
+
+    if (!preview.length) { toast('Aucune ligne valide trouvée', 'err'); return; }
+
+    _importLinesData = explicitLines;
+    _importDetecteursRefData = detecteurRefs;
+    renderImportPreview(preview);
+  } catch(e) {
+    console.error(e);
+    toast('Erreur lecture fichier', 'err');
+  }
+}
+
+
+let _importPreviewData = [];
+let _importLinesData = [];
+let _importDetecteursRefData = [];
+
+function renderImportPreview(rows) {
+  _importPreviewData = rows;
+  const div = document.getElementById('import-preview');
+
+  // Regrouper par client
+  const byClient = {};
+  rows.forEach(r => {
+    if (!byClient[r.client]) byClient[r.client] = [];
+    byClient[r.client].push(r);
+  });
+
+  const importedLinesCount = new Set([...(rows || []).map(r => String(r.ligne_prod || '').trim()).filter(Boolean), ..._importLinesData.map(r => String(r.nom || '').trim()).filter(Boolean)]).size;
+  let html = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+    ${rows.length} produit(s) · ${Object.keys(byClient).length} client(s) détecté(s)${importedLinesCount ? ' · ' + importedLinesCount + ' ligne(s)' : ''}
+  </div>`;
+
+  Object.entries(byClient).forEach(([cli, prods]) => {
+    html += `<div style="margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--blue-light);margin-bottom:6px">${cli}</div>`;
+    prods.forEach(p => {
+      const s = calcSeuils(p.qn);
+      html += `<div class="prod-row" style="margin-bottom:4px">
+        <div class="pr-info">
+          <div class="pr-name">${p.nom}</div>
+          <div class="pr-meta">Qn ${p.qn}g · ${calcTNEdisplay(p.qn)}
+            ${p.ligne_prod ? ' · ' + p.ligne_prod : ''}${p.detecteur ? ' · ' + p.detecteur : ''}
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  html += `<div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn btn-primary" style="flex:1" onclick="confirmImportProduits()">
+      ✓ Valider l'import
+    </button>
+    <button class="btn btn-secondary" style="flex:0.5" onclick="cancelImport()">
+      Annuler
+    </button>
+  </div>`;
+
+  div.innerHTML = html;
+  div.style.display = 'block';
+}
+
+function cancelImport() {
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('file-import-produits').value = '';
+  _importPreviewData = [];
+  _importLinesData = [];
+  _importDetecteursRefData = [];
+}
+
+async function confirmImportProduits() {
+  if (!_importPreviewData.length) return;
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Import en cours...';
+
+  try {
+    const normalizeKey = v => String(v || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    const existingClientsRes = await fetch(`${SB_URL}/rest/v1/clients?select=id,nom`, { headers: SB_HDR });
+    if (!existingClientsRes.ok) throw new Error('Lecture clients impossible');
+    const existingClients = await existingClientsRes.json();
+    const clientMap = {};
+    const clientByNorm = {};
+    const duplicateClientIdsToDelete = [];
+    existingClients.forEach(c => {
+      const name = String(c.nom || '').trim();
+      if (!name) return;
+      const nkey = normalizeTextKey(name);
+      if (!clientByNorm[nkey]) {
+        clientByNorm[nkey] = { id: c.id, nom: name };
+        clientMap[name] = c.id;
+      } else {
+        duplicateClientIdsToDelete.push(c.id);
+      }
+    });
+
+    for (const duplicateClientId of duplicateClientIdsToDelete) {
+      try {
+        await fetch(`${SB_URL}/rest/v1/clients?id=eq.${encodeURIComponent(duplicateClientId)}`, { method: 'DELETE', headers: SB_HDR });
+      } catch (e) {
+        console.warn('delete duplicate client ignored:', duplicateClientId, e);
+      }
+    }
+
+    const clientNames = [...new Set(_importPreviewData.map(r => r.client))];
+    for (const nom of clientNames) {
+      const normNom = normalizeTextKey(nom);
+      if (clientMap[nom]) continue;
+      if (clientByNorm[normNom]?.id) { clientMap[nom] = clientByNorm[normNom].id; continue; }
+      const id = 'cli_' + normalizeKey(nom).replace(/[^a-z0-9]/g,'_');
+      const res = await fetch(`${SB_URL}/rest/v1/clients`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SB_KEY,
+          'Authorization': 'Bearer ' + SB_KEY,
+          'Prefer': 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify({ id, nom })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        clientMap[nom] = data[0]?.id || id;
+        clientByNorm[normNom] = { id: clientMap[nom], nom };
+      } else {
+        const r2 = await fetch(`${SB_URL}/rest/v1/clients?nom=ilike.${encodeURIComponent(nom)}&select=id,nom`, { headers: SB_HDR });
+        const d2 = await r2.json();
+        const match = (d2 || []).find(x => normalizeTextKey(x.nom) === normNom);
+        clientMap[nom] = match?.id || id;
+        clientByNorm[normNom] = { id: clientMap[nom], nom: match?.nom || nom };
+      }
+    }
+
+    const lineDetecteurRows = [
+      ..._importPreviewData,
+      ..._importDetecteursRefData.map(r => ({ ligne_prod: r.ligne_prod, detecteur: r.detecteur }))
+    ];
+    const lineDetecteurMap = mergeLineDetecteurMappings(lineDetecteurRows);
+
+    const importedLineNames = [
+      ..._importLinesData.map(r => r.nom),
+      ..._importPreviewData.map(r => r.ligne_prod),
+      ...Object.keys(lineDetecteurMap)
+    ].filter(Boolean);
+    mergeStoredLineCatalogue(importedLineNames);
+
+    const lignesPayload = Array.from(new Set(importedLineNames.map(v => String(v || '').trim()).filter(Boolean))).map(nom => {
+      const explicit = _importLinesData.find(r => String(r.nom || '').trim() === nom);
+      return {
+        id: explicit?.id || ('lig_' + normalizeKey(nom).replace(/[^a-z0-9]/g,'_')),
+        nom,
+        detecteur_defaut: lineDetecteurMap[nom] || null
+      };
+    });
+
+    try {
+      if (lignesPayload.length) {
+        const resLignes = await fetch(`${SB_URL}/rest/v1/lignes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY,
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify(lignesPayload)
+        });
+        if (!resLignes.ok) {
+          const txt = await resLignes.text();
+          console.warn('Upsert lignes ignoré:', txt);
+        }
+      }
+    } catch (e) {
+      console.warn('Upsert lignes exception ignorée:', e);
+    }
+
+    const uniqueImportRows = [];
+    const seenImportKeys = new Set();
+    (_importPreviewData || []).forEach(r => {
+      const client_id = clientMap[r.client];
+      const importKey = `${client_id}||${normalizeTextKey(r.nom)}`;
+      if (!client_id || !normalizeTextKey(r.nom) || seenImportKeys.has(importKey)) return;
+      seenImportKeys.add(importKey);
+      uniqueImportRows.push(r);
+    });
+
+    const existingProdsRes = await fetch(`${SB_URL}/rest/v1/produits?select=id,client_id,nom`, { headers: SB_HDR });
+    if (!existingProdsRes.ok) throw new Error('Lecture produits impossible');
+    const existingProds = await existingProdsRes.json();
+    const groupedExisting = {};
+    existingProds.forEach(p => {
+      const key = `${p.client_id}||${normalizeKey(p.nom)}`;
+      if (!groupedExisting[key]) groupedExisting[key] = [];
+      groupedExisting[key].push(p);
+    });
+
+    let importedCount = 0;
+    for (const r of uniqueImportRows) {
+      const client_id = clientMap[r.client];
+      const naturalKey = `${client_id}||${normalizeKey(r.nom)}`;
+      const existingList = groupedExisting[naturalKey] || [];
+      const targetId = existingList[0]?.id || null;
+
+      if (existingList.length > 1) {
+        for (const dup of existingList.slice(1)) {
+          try {
+            await fetch(`${SB_URL}/rest/v1/produits?id=eq.${encodeURIComponent(dup.id)}`, { method: 'DELETE', headers: SB_HDR });
+          } catch (e) {
+            console.warn('delete duplicate produit ignored:', dup.id, e);
+          }
+        }
+      }
+
+      const payload = {
+        client_id,
+        nom: r.nom,
+        qn: r.qn,
+        ligne_prod: r.ligne_prod || null,
+        detecteur: r.detecteur || lineDetecteurMap[r.ligne_prod] || null,
+        of_planifies: r.of_planifies || null
+      };
+
+      if (targetId) {
+        let resPatch = await fetch(`${SB_URL}/rest/v1/produits?id=eq.${encodeURIComponent(targetId)}`, {
+          method: 'PATCH',
+          headers: { ...SB_HDR, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify(payload)
+        });
+        if (!resPatch.ok) {
+          const err = await resPatch.text();
+          if (/detecteur/i.test(err)) {
+            const { detecteur, ...fallback } = payload;
+            resPatch = await fetch(`${SB_URL}/rest/v1/produits?id=eq.${encodeURIComponent(targetId)}`, {
+              method: 'PATCH',
+              headers: { ...SB_HDR, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+              body: JSON.stringify(fallback)
+            });
+            if (!resPatch.ok) throw new Error(await resPatch.text());
+          } else {
+            throw new Error(err);
+          }
+        }
+      } else {
+        const createId = 'prod_' + normalizeKey(r.nom).replace(/[^a-z0-9]/g,'_') + '_' + client_id;
+        let resCreate = await fetch(`${SB_URL}/rest/v1/produits`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY,
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify([{ id: createId, ...payload }])
+        });
+        if (!resCreate.ok) {
+          const err = await resCreate.text();
+          if (/detecteur/i.test(err)) {
+            const { detecteur, ...fallback } = payload;
+            resCreate = await fetch(`${SB_URL}/rest/v1/produits`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SB_KEY,
+                'Authorization': 'Bearer ' + SB_KEY,
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify([{ id: createId, ...fallback }])
+            });
+            if (!resCreate.ok) throw new Error(await resCreate.text());
+          } else {
+            throw new Error(err);
+          }
+        }
+      }
+
+      groupedExisting[naturalKey] = [{ id: targetId || ('prod_' + normalizeKey(r.nom).replace(/[^a-z0-9]/g,'_') + '_' + client_id), client_id, nom: r.nom }];
+      importedCount += 1;
+    }
+
+    populateLineSelect('inp-ligne');
+    populateLineSelect('d-ligne');
+    populateDetecteurSelect();
+    toast(`${importedCount} produit(s) importé(s) ✓`, 'ok');
+    cancelImport();
+    await loadCatalogueFromSupabase();
+    renderAdminCatalogue();
+
+  } catch(e) {
+    console.error(e);
+    toast('Erreur import : ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = '✓ Valider l\'import';
+  }
+}
+
+
+/* ── Télécharger le template Excel ── */
+async function downloadTemplate() {
+  await window._libsReady;
+  if (typeof XLSX === 'undefined') { toast('XLSX indisponible', 'err'); return; }
+  const data = [
+    ['CLIENT', 'PRODUIT', 'QN_G', 'LIGNE_PROD', 'DETECTEUR', 'OF_PLANIFIES'],
+    ['ALPHA',  'POMME',   200,    'Ligne 1',    'Détecteur CCP 1', ''],
+    ['ALPHA',  'FRAISE',  250,    'Ligne 1',    'Détecteur CCP 1', 'OF-001, OF-002'],
+    ['BETA',   'BANANE',  300,    'Ligne 2',    'Détecteur CCP 2', ''],
+    ['OMEGA',  'POIRE',   500,    'Ligne 3',    'Détecteur fin de ligne', ''],
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:14},{wch:18},{wch:8},{wch:14},{wch:14},{wch:24}];
+  // Style header row
+  XLSX.utils.book_append_sheet(wb, ws, 'Produits');
+
+  // Feuille instructions
+  const inst = XLSX.utils.aoa_to_sheet([
+    ['INSTRUCTIONS'],
+    [''],
+    ['Colonne CLIENT      : Nom du client (obligatoire)'],
+    ['Colonne PRODUIT     : Nom du produit (obligatoire)'],
+    ['Colonne QN_G        : Poids nominal en grammes (obligatoire)'],
+    ['Colonne LIGNE_PROD  : Ligne de production (optionnel)'],
+    ['Colonne DETECTEUR   : Détecteur associé à la ligne (recommandé)'],
+    ['Colonne OF_PLANIFIES: N° OF séparés par des virgules (optionnel)'],
+    [''],
+    ['TU1, TU2 et TNE sont calculés automatiquement selon la réglementation préemballés française.'],
+  ]);
+  inst['!cols'] = [{wch:60}];
+  XLSX.utils.book_append_sheet(wb, inst, 'Instructions');
+  XLSX.writeFile(wb, 'qualpack_template_produits.xlsx');
+}
+
+/* ── Afficher catalogue dans l'admin ── */
+function renderAdminCatalogue() {
+  const div = document.getElementById('admin-catalogue-list');
+  if (!div) return;
+  const clients = Object.keys(CATALOGUE).sort();
+  if (!clients.length) {
+    div.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px">Aucun produit configuré</div>';
+    return;
+  }
+  let html = '';
+  clients.forEach(cli => {
+    const prods = CATALOGUE[cli] || [];
+    html += `<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--blue-light);letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px">
+        ${cli} <span style="color:var(--text-muted);font-weight:400">(${prods.length} produit${prods.length>1?'s':''})</span>
+      </div>`;
+    prods.forEach(p => {
+      html += `<div class="prod-row" style="margin-bottom:4px">
+        <div class="pr-info">
+          <div class="pr-name">${p.nom}</div>
+          <div class="pr-meta">Qn ${p.qn}g · TU1 ${p.tu1}g · TU2 ${p.tu2}g · TNE ${p.tne}g
+            ${p.ligne_prod ? ' · ' + p.ligne_prod : ''}${p.detecteur ? ' · ' + p.detecteur : ''}
+          </div>
+        </div>
+        <button onclick="deleteProduit('${p.id}','${p.nom}')"
+          style="background:var(--red-bg);color:var(--red-text);border:1px solid var(--red);
+          border-radius:var(--r-sm);padding:4px 10px;font-size:11px;cursor:pointer">
+          Suppr.
+        </button>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  div.innerHTML = html;
+}
+
+async function deleteProduit(id, nom) {
+  if (!confirm(`Supprimer le produit "${nom}" ?`)) return;
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/produits?id=eq.${id}`, {
+      method: 'DELETE', headers: SB_HDR
+    });
+    if (!res.ok) throw new Error(res.status);
+    toast(`"${nom}" supprimé`, 'ok');
+    await loadCatalogueFromSupabase();
+    renderAdminCatalogue();
+  } catch(e) {
+    toast('Erreur suppression', 'err');
+  }
+}
+
+/* ── Gestion opérateurs ── */
+async function addOperateur() {
+  const nomEl = document.getElementById('inp-op-nom');
+  const roleEl = document.getElementById('sel-op-role');
+  const nom  = nomEl ? nomEl.value.trim() : '';
+  const role = roleEl ? roleEl.value : 'Operateur';
+
+  reinforceOperateurInputVisibility();
+
+  if (!nom) { toast('Saisissez un nom', 'err'); return; }
+
+  const id = 'op_' + nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g,'_') + '_' + Date.now();
+  const payload = { id, nom, role, actif: true };
+
+  upsertLocalOperateur(payload);
+  renderAdminOperateurs();
+  populateOpSelects();
+  if (nomEl) nomEl.value = '';
+  reinforceOperateurInputVisibility();
+
+  if (!navigator.onLine) {
+    toast(nom + ' ajouté localement (hors ligne)', 'ok');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/operateurs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Prefer': 'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('addOperateur error:', res.status, errText);
+      toast(nom + ' ajouté localement — synchro serveur à vérifier', 'ok');
+      return;
+    }
+
+    await loadCatalogueFromSupabase();
+    renderAdminOperateurs();
+    populateOpSelects();
+    toast(nom + ' ajouté ✓', 'ok');
+  } catch(e) {
+    console.error('addOperateur exception:', e);
+    toast(nom + ' ajouté localement — synchro serveur à vérifier', 'ok');
+  }
+}
+
+async function deleteOperateur(id, nom) {
+  if (!confirm(`Retirer l'opérateur "${nom}" ?`)) return;
+
+  removeLocalOperateur(id);
+  renderAdminOperateurs();
+  populateOpSelects();
+
+  if (!navigator.onLine) {
+    toast(`${nom} retiré localement`, 'ok');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/operateurs?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: SB_HDR,
+      body: JSON.stringify({ actif: false })
+    });
+    if (!res.ok) throw new Error(res.status);
+    await loadCatalogueFromSupabase();
+    renderAdminOperateurs();
+    populateOpSelects();
+    toast(`${nom} désactivé`, 'ok');
+  } catch(e) {
+    console.error('deleteOperateur error:', e);
+    toast(`${nom} retiré localement — synchro serveur à vérifier`, 'ok');
+  }
+}
+
+function renderAdminOperateurs() {
+  const div = document.getElementById('admin-op-list');
+  if (!div) return;
+  if (!OPERATEURS.length) {
+    div.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px">Aucun opérateur configuré</div>';
+    return;
+  }
+  div.innerHTML = OPERATEURS.map(op => `
+    <div class="admin-row">
+      <div>
+        <div class="admin-row-label">${op.nom}</div>
+        <div class="admin-row-sub">${op.role}</div>
+      </div>
+      <button onclick="deleteOperateur('${op.id}','${op.nom}')"
+        style="background:var(--red-bg);color:var(--red-text);border:1px solid var(--red);
+        border-radius:var(--r-sm);padding:4px 10px;font-size:11px;cursor:pointer">
+        Retirer
+      </button>
+    </div>`).join('');
+}
+
+
+async function manualSync() {
+  const btn = document.getElementById('btn-sync-history');
+  const initialText = btn ? btn.textContent : '';
+
+  try {
+    if (!navigator.onLine) {
+      toast('Connexion requise pour synchroniser', 'err');
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Synchronisation...';
+    }
+
+    let count = 0;
+    try {
+      const syncFn = window.syncPending || (typeof syncPending === 'function' ? syncPending : null);
+      if (!syncFn) throw new Error('syncPending indisponible');
+      count = await syncFn(true);
+    } catch (syncErr) {
+      console.warn('syncPending error detail:', syncErr);
+      const msg = String(syncErr && syncErr.message || syncErr || '');
+      if (/fetch|network|failed/i.test(msg)) {
+        toast('Serveur inaccessible — données conservées localement', 'err');
+      } else {
+        toast('Erreur de synchronisation : ' + msg.slice(0, 60), 'err');
+      }
+      return;
+    }
+
+    if (typeof loadFromDB === 'function') {
+      await loadFromDB();
+    }
+
+    if (typeof renderHist === 'function') {
+      await renderHist();
+    }
+
+    if (document.getElementById('screen-dashboard')?.classList.contains('active')) {
+      if (typeof renderDashboard === 'function') {
+        renderDashboard();
+      }
+    }
+
+    if ((count || 0) > 0) {
+      toast(count + ' élément(s) synchronisé(s)', 'ok');
+    } else {
+      toast('Aucune donnée en attente', '');
+    }
+
+  } catch (e) {
+    console.error('manualSync error:', e);
+    toast('Erreur de synchronisation', 'err');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = initialText || '🔄 Synchroniser';
+    }
+  }
+}
+
+/* ================================================================
+   SERVICE WORKER
+   ================================================================ */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js?v=20.0.0')
+    .then(() => console.log('SW enregistré'))
+    .catch(e => console.warn('SW erreur', e));
+}
+
+</script>
+<script>
+
+async function generatePDFV2() {
+  try {
+    await window._libsReady;
+    const jspdfLib = window.jspdf || (typeof jsPDF !== 'undefined' ? { jsPDF } : null);
+    if (!jspdfLib || !jspdfLib.jsPDF) {
+      toast('Librairie PDF indisponible', 'err');
+      return;
+    }
+
+    const { jsPDF } = jspdfLib;
+    await ensurePdfBrandAssets();
+
+    const data = getDashboardExportData();
+    const theme = pdfV2Theme();
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    doc.setFont('helvetica', 'normal');
+    pdfSetText(doc, theme.text);
+
+    const perimeter = getPDFV2Perimeter(data);
+    const rows = getPDFV2Rows(data);
+    const allGood = data.stats.tu2 === 0 && data.stats.dErr === 0 && data.stats.pErr === 0;
+    const globalStatusColor = allGood ? theme.green : (data.stats.tu2 > 0 || data.stats.dErr > 0 || data.stats.pErr > 0 ? theme.red : theme.orange);
+    const globalConf = Math.max(0, Math.max(Number(data.stats.pConf) || 0, Number(data.stats.dConf) || 0));
+
+    // Page 1
+    pdfPageHeader(doc, 'Page 1/3', 'Synthèse', 1);
+    let y = 44;
+
+    pdfCard(doc, 14, y, 182, 16, theme.bgSoft, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    pdfSetText(doc, theme.text);
+    doc.text(`Période - ${perimeter.periodTitle}`, 18, y + 10);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    pdfSetText(doc, theme.muted);
+    doc.text(`Période analysée : ${data.filtersText?.periode || '7 jours'}`, 145, y + 10, { align:'right' });
+    y += 22;
+
+    pdfCard(doc, 14, y, 88, 58, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.muted);
+    doc.text('Site', 18, y + 10);
+    doc.text('Client', 18, y + 20);
+    doc.text('Produit', 18, y + 30);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    pdfSetText(doc, theme.text);
+    doc.text(doc.splitTextToSize(perimeter.site, 58), 40, y + 10);
+    doc.text(doc.splitTextToSize(perimeter.client, 58), 40, y + 20);
+    doc.text(doc.splitTextToSize(perimeter.product, 58), 40, y + 30);
+
+    pdfSetFill(doc, globalStatusColor);
+    doc.roundedRect(18, y + 39, 80, 13, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(255,255,255);
+    doc.text(`STATUT GLOBAL - ${String(data.status?.chip || 'CONFORME').toUpperCase()}`, 58, y + 47.5, { align:'center' });
+    pdfSetText(doc, theme.text);
+
+    pdfCard(doc, 108, y, 88, 58, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    pdfSetText(doc, theme.text);
+    doc.text('Activité', 112, y + 10);
+
+    const metrics = [
+      [`${data.stats.lots}`, 'lots contrôlés'],
+      [`${data.stats.tests}`, 'tests détecteur'],
+      [`${data.stats.completion}%`, 'complétion 7 jours'],
+      [`${globalConf}%`, 'conformité globale']
+    ];
+    let mx = 112, my = y + 16;
+    metrics.forEach((m, idx) => {
+      pdfCard(doc, mx, my, 38, 16, idx === 3 ? theme.bgSoft : theme.white, theme.border, 2);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      pdfSetText(doc, idx === 3 ? globalStatusColor : theme.navy);
+      doc.text(String(m[0]), mx + 4, my + 7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.8);
+      pdfSetText(doc, theme.muted);
+      doc.text(m[1], mx + 4, my + 12.8);
+      mx += 42;
+      if (idx === 1) { mx = 112; my += 20; }
+    });
+
+    y += 66;
+
+    pdfCard(doc, 14, y, 88, 34, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    pdfSetText(doc, theme.text);
+    doc.text('Conformité pesées', 18, y + 9);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    pdfSetText(doc, data.stats.pConf >= 95 ? theme.green : data.stats.pConf >= 90 ? theme.orange : theme.red);
+    doc.text(`${data.stats.pConf}%`, 18, y + 23);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.4);
+    pdfSetText(doc, theme.text);
+    doc.text(`${data.stats.pErr} lot(s) non conformes`, 50, y + 16);
+    doc.text(`${data.stats.pWarn} lot(s) à surveiller`, 50, y + 23);
+    doc.text(`${data.stats.pOk} lot(s) conformes`, 50, y + 30);
+
+    pdfCard(doc, 108, y, 88, 34, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    pdfSetText(doc, theme.text);
+    doc.text('Conformité détecteur', 112, y + 9);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    pdfSetText(doc, data.stats.dConf >= 95 ? theme.green : data.stats.dConf >= 90 ? theme.orange : theme.red);
+    doc.text(`${data.stats.dConf}%`, 112, y + 23);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.4);
+    pdfSetText(doc, theme.text);
+    doc.text(`${data.stats.dErr} test(s) non conforme(s)`, 144, y + 16);
+    doc.text(`${data.stats.dOk} test(s) OK`, 144, y + 23);
+    doc.text(`Détecteur NOK : ${data.stats.dErr}`, 144, y + 30);
+
+    y += 42;
+
+    pdfCard(doc, 14, y, 182, 34, theme.bgSoft, theme.border, 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    pdfSetText(doc, theme.text);
+    doc.text('Lecture qualité', 18, y + 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+    const summaryLines = [
+      `TU1 : ${data.stats.tu1}   TU2 : ${data.stats.tu2}`,
+      `Détecteur NOK : ${data.stats.dErr}`,
+    ];
+    doc.text(summaryLines, 18, y + 16);
+    pdfDrawFooter(doc, 1);
+
+    // Page 2
+    doc.addPage();
+    pdfPageHeader(doc, 'Page 2/3', 'Activité & traçabilité', 2);
+    y = 44;
+    pdfCard(doc, 14, y, 182, 12, theme.bgSoft, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    pdfSetText(doc, theme.muted);
+    doc.text(`Tableau de suivi des contrôles qualité réalisés sur la période sélectionnée (${data.filtersText?.periode || '7 jours'}).`, 18, y + 7.5);
+    y += 18;
+
+    const headers = ['Date', 'Produit / Équipement', 'N° OF', 'Ligne', 'Opérateur', 'Résultat'];
+    const widths = [24, 50, 24, 28, 28, 28];
+    drawPDFV2Table(doc, 14, y, widths, headers, rows.slice(0, 10), theme);
+    y += 12 + (Math.max(1, Math.min(rows.length, 10)) + 1) * 10 + 6;
+
+    pdfCard(doc, 14, y, 182, 20, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+    doc.text([
+      "Chaque ligne reprend la date, le produit ou l'équipement, le numéro d'ordre de fabrication, la ligne de production,",
+      "l'opérateur et le résultat final."
+    ], 18, y + 7);
+    pdfDrawFooter(doc, 2);
+
+    // Page 3
+    doc.addPage();
+    pdfPageHeader(doc, 'Page 3/3', 'Alertes & analyse', 3);
+    y = 44;
+
+    pdfSetFill(doc, globalStatusColor);
+    doc.roundedRect(14, y, 182, 20, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(255,255,255);
+    doc.text(allGood ? 'Aucune non-conformité détectée sur cette période' : (data.status?.title || 'Action prioritaire requise'), 18, y + 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.text(allGood ? 'Process maîtrisé' : (data.status?.subtitle || 'Des écarts nécessitent une analyse.'), 18, y + 15);
+    pdfSetText(doc, theme.text);
+    y += 28;
+
+    pdfSectionTitle(doc, y, 'Analyse automatique');
+    y += 8;
+    pdfCard(doc, 14, y, 182, 34, theme.white, theme.border, 3);
+    const checks = buildPDFV2Checks(data);
+    const left = checks.slice(0, 2);
+    const right = checks.slice(2);
+    left.forEach((item, idx) => {
+      const rowY = y + 10 + idx * 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      pdfSetText(doc, item.ok ? theme.green : item.level === 'warn' ? theme.orange : theme.red);
+      doc.text(item.ok ? '✓' : '•', 18, rowY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.2);
+      pdfSetText(doc, theme.text);
+      doc.text(doc.splitTextToSize(item.label, 76), 24, rowY);
+    });
+    right.forEach((item, idx) => {
+      const rowY = y + 10 + idx * 10;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      pdfSetText(doc, item.ok ? theme.green : item.level === 'warn' ? theme.orange : theme.red);
+      doc.text(item.ok ? '✓' : '•', 108, rowY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.2);
+      pdfSetText(doc, theme.text);
+      doc.text(doc.splitTextToSize(item.label, 76), 114, rowY);
+    });
+    y += 42;
+
+    pdfSectionTitle(doc, y, 'Alertes à retenir');
+    y += 8;
+    drawPDFV2AlertMiniTable(doc, 14, y, (data.alerts || []).slice(0, 5), theme);
+    y += 12 + (Math.max(1, Math.min((data.alerts || []).length, 5)) + 1) * 10 + 6;
+
+    pdfCard(doc, 14, y, 182, 22, theme.bgSoft, theme.border, 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    pdfSetText(doc, theme.text);
+    doc.text('Usage recommandé', 18, y + 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+    doc.text('Support revue qualité · audit interne · présentation direction.', 18, y + 16);
+
+    pdfDrawFooter(doc, 3);
+    doc.save('QualPack_PDF_V2.pdf');
+  } catch (e) {
+    console.error('generatePDFV2 error:', e);
+    toast('Erreur génération PDF', 'err');
+  }
+}
+
+function getPDFV2Perimeter(data) {
+  const p = Array.isArray(data.p) ? data.p : [];
+  const d = Array.isArray(data.d) ? data.d : [];
+  const allLines = [...new Set([...p, ...d].map(x => (x && (x.ligne_prod || x.ligne) || '').trim()).filter(Boolean))];
+  return {
+    periodTitle: data.filtersText?.periode === 'Tout historique' ? 'Tout historique' : `Les ${String(data.filtersText?.periode || '7 jours').replace(' jours',' derniers jours')}`,
+    site: allLines.length > 1 ? `Lignes de production ${allLines.join(' / ')}` : (allLines[0] || 'Site non renseigné'),
+    client: data.filtersText?.client || 'Tous les clients',
+    product: data.filtersText?.produit || 'Tous produits',
+    line: allLines.length ? allLines.join(' / ') : 'Toutes lignes'
+  };
+}
+
+function getPDFV2Rows(data) {
+  const pRows = (Array.isArray(data.p) ? data.p : []).map(s => ({
+    date: s.date || '—',
+    prod: s.prod || 'Produit',
+    of: s.of || '—',
+    line: s.ligne_prod || s.ligne || '—',
+    op: s.op || '—',
+    result: s.vF === 'ok' ? 'CONFORME' : s.vF === 'warn' ? 'A SURVEILLER' : 'NON CONFORME',
+    level: s.vF || 'warn',
+    ts: new Date(s.createdAt || s.date || 0).getTime() || 0
+  }));
+
+  const dRows = (Array.isArray(data.d) ? data.d : []).map(s => ({
+    date: s.date || s.now || '—',
+    prod: s.eq || 'Détecteur',
+    of: s.of || '—',
+    line: s.ligne_prod || s.ligne || '—',
+    op: s.op || '—',
+    result: s.vF === 'ok' ? 'CONFORME' : 'NON CONFORME',
+    level: s.vF || 'warn',
+    ts: new Date(s.createdAt || s.date || s.now || 0).getTime() || 0
+  }));
+
+  return [...pRows, ...dRows].sort((a,b) => b.ts - a.ts);
+}
+
+function buildPDFV2Checks(data) {
+  return [
+    { ok: data.stats.pErr === 0, level: data.stats.pErr === 0 ? 'ok' : 'err', label: data.stats.pErr === 0 ? 'Pesées critiques absentes' : `${data.stats.pErr} lot(s) de pesée non conforme(s)` },
+    { ok: data.stats.dErr === 0, level: data.stats.dErr === 0 ? 'ok' : 'err', label: data.stats.dErr === 0 ? 'Détecteur maîtrisé' : `${data.stats.dErr} test(s) détecteur NOK` },
+    { ok: data.stats.tu1 === 0, level: data.stats.tu1 === 0 ? 'ok' : 'warn', label: data.stats.tu1 === 0 ? 'Pas de dérive détectée' : `${data.stats.tu1} défaut(s) TU1 à analyser` }
+  ];
+}
+
+function drawPDFV2Table(doc, x, y, widths, headers, rows, theme) {
+  const safeRows = Array.isArray(rows) && rows.length ? rows : [{
+    date:'—', prod:'Aucune donnée', of:'—', line:'—', op:'—', result:'—', level:'warn'
+  }];
+
+  let cx = x;
+  headers.forEach((h, idx) => {
+    pdfCard(doc, cx, y, widths[idx], 10, theme.bgAlt, theme.borderStrong || theme.border, 1.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.2);
+    pdfSetText(doc, theme.text);
+    doc.text(h, cx + 1.8, y + 6.1);
+    cx += widths[idx];
+  });
+
+  safeRows.forEach((row, ridx) => {
+    const ry = y + 10 + ridx * 10;
+    const vals = [row.date, row.prod, row.of, row.line, row.op, row.result];
+    let xx = x;
+
+    vals.forEach((v, idx) => {
+      pdfCard(doc, xx, ry, widths[idx], 10, theme.white, theme.border, 1.2);
+
+      if (idx === 5) {
+        const chipColor = row.level === 'ok' ? theme.green : row.level === 'warn' ? theme.orange : theme.red;
+        pdfSetFill(doc, chipColor);
+        doc.roundedRect(xx + 1.5, ry + 2, widths[idx] - 3, 6, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.2);
+        doc.setTextColor(255, 255, 255);
+        doc.text(String(v || '—'), xx + (widths[idx] / 2), ry + 5.9, { align: 'center' });
+        pdfSetText(doc, theme.text);
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.9);
+        pdfSetText(doc, theme.text);
+        const maxWidth = widths[idx] - 3.5;
+        const txt = String(v || '—');
+        const lines = doc.splitTextToSize(txt, maxWidth);
+        doc.text(lines[0] || '—', xx + 1.7, ry + 6.0);
+      }
+
+      xx += widths[idx];
+    });
+  });
+}
+
+function drawPDFV2AlertMiniTable(doc, x, y, alerts, theme) {
+  const headers = ['Date', 'Type', 'Produit/Éq.', 'Action'];
+  const widths = [24, 26, 44, 88];
+  const safeAlerts = Array.isArray(alerts) && alerts.length ? alerts : [{
+    date:'—', type:'Information', produit:'Aucune alerte', action:'Aucune action requise'
+  }];
+
+  let cx = x;
+  headers.forEach((h, idx) => {
+    pdfCard(doc, cx, y, widths[idx], 10, theme.bgAlt, theme.borderStrong || theme.border, 1.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.2);
+    pdfSetText(doc, theme.text);
+    doc.text(h, cx + 1.8, y + 6.1);
+    cx += widths[idx];
+  });
+
+  safeAlerts.forEach((a, ridx) => {
+    const ry = y + 10 + ridx * 10;
+    const vals = [a.date || '—', a.type || '—', a.produit || '—', a.action || '—'];
+    let xx = x;
+
+    vals.forEach((v, idx) => {
+      pdfCard(doc, xx, ry, widths[idx], 10, theme.white, theme.border, 1.2);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.9);
+      pdfSetText(doc, idx === 1 && /NOK|TU2|NON/i.test(String(v)) ? theme.red : theme.text);
+      const lines = doc.splitTextToSize(String(v || '—'), widths[idx] - 3.5);
+      doc.text(lines[0] || '—', xx + 1.7, ry + 6.0);
+      xx += widths[idx];
+    });
+  });
+}
+
+function pdfDrawFooter(doc, pageNo) {
+  const theme = pdfV2Theme();
+  pdfSetDraw(doc, theme.borderStrong || theme.border);
+  doc.setLineWidth(0.35);
+  doc.line(14, 284, 196, 284);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  pdfSetText(doc, theme.muted);
+  doc.text('Document généré automatiquement par QualPack', 14, 289);
+  doc.text('Usage recommandé: support revue qualité, audit interne, présentation direction.', 14, 293);
+  doc.text(`Page ${pageNo}/3`, 196, 289, { align: 'right' });
+}
+
+</script>
+</body>
+</html>
