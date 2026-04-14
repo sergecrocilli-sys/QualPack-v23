@@ -4136,7 +4136,7 @@ async function genDashboardPDF() {
     doc.setFontSize(8.5);
     pdfSetText(doc, theme.muted);
     doc.text(split(`Période analysée : ${perimeter.periodTitle}`, 78), 18, y + 14);
-    doc.text(split(`Client : ${perimeter.client}`, 78), 96, y + 14);
+    doc.text(split(`Client : ${perimeter.client}`, 78), 18, y + 20);
 
     y += 32;
 
