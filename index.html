@@ -2566,6 +2566,7 @@ function goDS3() {
 
 async function saveDet() {
   if (!window._lastDet) return;
+
   const record = {
     id: 'det_' + Date.now(),
     type: 'det',
@@ -2573,29 +2574,36 @@ async function saveDet() {
     ...window._lastDet,
     synced: false
   };
+
   try {
     await saveDetecteur(record);
     dets.unshift(record);
     toast('Test enregistré ✓', 'ok');
-    // Sync Supabase en arrière-plan
-    syncDetecteur(record).then(ok => {
-      if (ok) toast('Synchronisé ✓', 'ok');
-    });
-  } catch(e) {
+  } catch (e) {
     console.error('IndexedDB saveDet error:', e);
-    // Fallback localStorage si IndexedDB échoue
+
     try {
       const stored = JSON.parse(localStorage.getItem('qp_dets') || '[]');
       stored.unshift(record);
       localStorage.setItem('qp_dets', JSON.stringify(stored));
       dets.unshift(record);
       toast('Test enregistré (local) ✓', 'ok');
-    } catch(e2) {
+    } catch (e2) {
       toast('Erreur enregistrement', 'err');
+      return;
+    }
+  }
+
+  // Sync Supabase en arrière-plan seulement si disponible
+  if (typeof syncDetecteur === 'function') {
+    try {
+      const ok = await syncDetecteur(record);
+      if (ok) toast('Synchronisé ✓', 'ok');
+    } catch (err) {
+      console.warn('syncDetecteur failed:', err);
     }
   }
 }
-
 function newDet() {
   showStep('detecteur', 1);
   ['d-equip','d-op','d-of','d-type','d-ligne'].forEach(id => document.getElementById(id).value = '');
