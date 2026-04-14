@@ -3997,7 +3997,6 @@ async function genDashboardPDF() {
     pdfSetText(doc, theme.text);
 
     const perimeter = getPDFV2Perimeter(data);
-
     const safeText = (value) => String(value || '—');
     const split = (txt, w) => doc.splitTextToSize(safeText(txt), w);
 
@@ -4019,11 +4018,6 @@ async function genDashboardPDF() {
       ok: r.vF === 'ok'
     }));
 
-    const reportDate = new Date().toLocaleDateString('fr-FR') + ' ' + new Date().toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-
     function drawFooter(pageNo) {
       pdfSetDraw(doc, theme.borderStrong || theme.border);
       doc.setLineWidth(0.35);
@@ -4042,27 +4036,27 @@ async function genDashboardPDF() {
       doc.roundedRect(x, y, 2.8, h, 2, 2, 'F');
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       pdfSetText(doc, theme.muted);
       doc.text(title, x + 6, y + 7);
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
+      doc.setFontSize(15);
       pdfSetText(doc, accent);
-      doc.text(String(value), x + 6, y + 16);
+      doc.text(String(value), x + 6, y + 15.5);
 
       if (subtitle) {
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
+        doc.setFontSize(7.2);
         pdfSetText(doc, theme.muted);
         const lines = split(subtitle, w - 10);
-        doc.text(lines.slice(0, 2), x + 6, y + 23);
+        doc.text(lines.slice(0, 2), x + 6, y + 22);
       }
     }
 
     function drawSimpleTableTitle(y, title) {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(10.5);
       pdfSetText(doc, theme.navy);
       doc.text(title, 14, y);
     }
@@ -4072,24 +4066,24 @@ async function genDashboardPDF() {
       y += 5;
 
       const cols = [
-        { key: 'date', x: 14, w: 28, label: 'Date' },
-        { key: 'label', x: 42, w: 78, label: 'Produit / Équipement' },
-        { key: 'of', x: 120, w: 24, label: 'N° OF' },
-        { key: 'line', x: 144, w: 24, label: 'Ligne' },
-        { key: 'result', x: 168, w: 28, label: 'Résultat' }
+        { key: 'date', x: 14, w: 24, label: 'Date' },
+        { key: 'label', x: 38, w: 88, label: 'Produit / Équipement' },
+        { key: 'of', x: 126, w: 20, label: 'N° OF' },
+        { key: 'line', x: 146, w: 20, label: 'Ligne' },
+        { key: 'result', x: 166, w: 30, label: 'Résultat' }
       ];
 
-      pdfCard(doc, 14, y, 182, 10, theme.bgSoft, theme.border, 2);
+      pdfCard(doc, 14, y, 182, 9, theme.bgSoft, theme.border, 2);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.3);
+      doc.setFontSize(8);
       pdfSetText(doc, theme.text);
-      cols.forEach(c => doc.text(c.label, c.x + 1.5, y + 6.2));
-      y += 12;
+      cols.forEach(c => doc.text(c.label, c.x + 1.2, y + 5.8));
+      y += 11;
 
       if (!rows.length) {
         pdfCard(doc, 14, y, 182, 10, theme.white, theme.border, 2);
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8.5);
+        doc.setFontSize(8.3);
         pdfSetText(doc, theme.muted);
         doc.text(emptyText, 18, y + 6.2);
         return y + 14;
@@ -4097,10 +4091,10 @@ async function genDashboardPDF() {
 
       rows.forEach(row => {
         const lineSets = {
-          date: split(row.date, 24),
-          label: split(row.label, 72),
-          of: split(row.of, 18),
-          line: split(row.line, 18),
+          date: split(row.date, 20),
+          label: split(row.label, 82),
+          of: split(row.of, 16),
+          line: split(row.line, 16),
           result: [row.result]
         };
 
@@ -4108,46 +4102,45 @@ async function genDashboardPDF() {
           lineSets.date.length,
           lineSets.label.length,
           lineSets.of.length,
-          lineSets.line.length,
-          lineSets.result.length
+          lineSets.line.length
         );
 
-        const rowH = Math.max(10, 4 + maxLines * 4.2);
+        const rowH = Math.max(10, 4 + maxLines * 3.8);
 
         if (y + rowH > 278) {
           doc.addPage();
-          pdfPageHeader(doc, 'Activité & traçabilité', '', 2);
+          pdfPageHeader(doc, 'Rapport qualité', 'Activité & traçabilité', 2);
           y = 38;
 
-          pdfCard(doc, 14, y, 182, 10, theme.bgSoft, theme.border, 2);
+          pdfCard(doc, 14, y, 182, 9, theme.bgSoft, theme.border, 2);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(8.3);
+          doc.setFontSize(8);
           pdfSetText(doc, theme.text);
-          cols.forEach(c => doc.text(c.label, c.x + 1.5, y + 6.2));
-          y += 12;
+          cols.forEach(c => doc.text(c.label, c.x + 1.2, y + 5.8));
+          y += 11;
         }
 
         pdfCard(doc, 14, y, 182, rowH, theme.white, theme.border, 2);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(7.6);
         pdfSetText(doc, theme.text);
 
-        doc.text(lineSets.date, 15.5, y + 5.2);
-        doc.text(lineSets.label, 43.5, y + 5.2);
-        doc.text(lineSets.of, 121.5, y + 5.2);
-        doc.text(lineSets.line, 145.5, y + 5.2);
+        doc.text(lineSets.date, 15.2, y + 4.8);
+        doc.text(lineSets.label, 39.2, y + 4.8);
+        doc.text(lineSets.of, 127.2, y + 4.8);
+        doc.text(lineSets.line, 147.2, y + 4.8);
 
         const chipColor = row.ok ? theme.green : theme.red;
         pdfSetFill(doc, chipColor);
-        doc.roundedRect(170, y + 2, 22, 6.5, 2, 2, 'F');
+        doc.roundedRect(170, y + 2, 22, 6.2, 2, 2, 'F');
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7.2);
+        doc.setFontSize(7);
         doc.setTextColor(255, 255, 255);
-        doc.text(row.result, 181, y + 6.3, { align: 'center' });
+        doc.text(row.result, 181, y + 6.0, { align: 'center' });
         pdfSetText(doc, theme.text);
 
-        y += rowH + 3;
+        y += rowH + 2.5;
       });
 
       return y;
@@ -4156,20 +4149,11 @@ async function genDashboardPDF() {
     /* =========================
        PAGE 1 — SYNTHÈSE
     ========================= */
-    pdfPageHeader(doc, 'Rapport Qualité Premium', 'Synthèse', 1);
+    pdfPageHeader(doc, 'Rapport qualité', 'Synthèse', 1);
 
-    // Rappel visuel application QualPack sur page 1
-    if (_pdfBrandAssets.appIcon) {
-      try {
-        doc.addImage(_pdfBrandAssets.appIcon, 'PNG', 168, 36, 18, 18);
-      } catch (e) {
-        console.warn('Icône app PDF non ajoutée', e);
-      }
-    }
+    let y = 40;
 
-    let y = 38;
-
-    pdfCard(doc, 14, y, 182, 18, theme.bgSoft, theme.border, 3);
+    pdfCard(doc, 14, y, 182, 24, theme.bgSoft, theme.border, 3);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     pdfSetText(doc, theme.text);
@@ -4178,10 +4162,10 @@ async function genDashboardPDF() {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     pdfSetText(doc, theme.muted);
-    doc.text(`Période analysée : ${perimeter.periodTitle}`, 18, y + 14);
-    doc.text(`Client : ${perimeter.client}`, 90, y + 14);
+    doc.text(split(`Période analysée : ${perimeter.periodTitle}`, 78), 18, y + 14);
+    doc.text(split(`Client : ${perimeter.client}`, 78), 96, y + 14);
 
-    y += 26;
+    y += 32;
 
     pdfSectionTitle(doc, y, 'PESÉES');
     y += 6;
@@ -4204,7 +4188,7 @@ async function genDashboardPDF() {
     pdfSectionTitle(doc, y, 'Point de vigilance');
     y += 6;
 
-    pdfCard(doc, 14, y, 182, 22, theme.white, theme.border, 3);
+    pdfCard(doc, 14, y, 182, 24, theme.white, theme.border, 3);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     pdfSetText(doc, theme.text);
@@ -4218,7 +4202,7 @@ async function genDashboardPDF() {
       summaryMsg = `${data.stats.pWarn} lot(s) de pesées à surveiller sur la période.`;
     }
 
-    doc.text(split(summaryMsg, 170), 18, y + 10);
+    doc.text(split(summaryMsg, 168), 18, y + 10);
 
     drawFooter(1);
 
@@ -4226,9 +4210,9 @@ async function genDashboardPDF() {
        PAGE 2 — ACTIVITÉ & TRAÇABILITÉ
     ========================= */
     doc.addPage();
-    pdfPageHeader(doc, 'Rapport Qualité Premium', 'Activité & traçabilité', 2);
+    pdfPageHeader(doc, 'Rapport qualité', 'Activité & traçabilité', 2);
 
-    let y2 = 38;
+    let y2 = 40;
     y2 = drawRowsTable(y2, 'Contrôles pesées', pRows, 'Aucun contrôle pesées sur la période.');
     y2 += 6;
     y2 = drawRowsTable(y2, 'Contrôles détecteur', dRows, 'Aucun contrôle détecteur sur la période.');
@@ -4239,9 +4223,32 @@ async function genDashboardPDF() {
        PAGE 3 — ANALYSE & DÉCISION
     ========================= */
     doc.addPage();
-    pdfPageHeader(doc, 'Rapport Qualité Premium', 'Analyse & décision', 3);
+    pdfPageHeader(doc, 'Rapport qualité', 'Analyse & décision', 3);
 
-    let y3 = 38;
+    let y3 = 40;
+
+    // Bloc alerte visuel
+    const hasAlert = data.stats.dErr > 0 || data.stats.pErr > 0 || data.stats.pWarn > 0;
+    const alertColor = data.stats.dErr > 0 || data.stats.pErr > 0 ? theme.red : theme.orange;
+
+    pdfCard(doc, 14, y3, 182, 20, hasAlert ? [255, 245, 245] : theme.bgSoft, theme.border, 3);
+    pdfSetFill(doc, alertColor);
+    doc.roundedRect(14, y3, 3, 20, 2, 2, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    pdfSetText(doc, hasAlert ? alertColor : theme.green);
+    doc.text(hasAlert ? 'Alerte qualité' : 'Situation maîtrisée', 20, y3 + 8);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+    const alertText = hasAlert
+      ? summaryMsg
+      : 'Aucune non-conformité critique détectée sur la période.';
+    doc.text(split(alertText, 165), 20, y3 + 15);
+
+    y3 += 28;
 
     pdfSectionTitle(doc, y3, 'Analyse automatique');
     y3 += 6;
@@ -4282,7 +4289,7 @@ async function genDashboardPDF() {
     pdfSectionTitle(doc, y3, 'Recommandation');
     y3 += 6;
 
-    pdfCard(doc, 14, y3, 182, 22, theme.bgSoft, theme.border, 3);
+    pdfCard(doc, 14, y3, 182, 24, theme.bgSoft, theme.border, 3);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     pdfSetText(doc, theme.text);
@@ -4300,7 +4307,7 @@ async function genDashboardPDF() {
 
     drawFooter(3);
 
-    doc.save('QualPack_Rapport_Premium.pdf');
+    doc.save('QualPack_Rapport_Qualite.pdf');
 
   } catch (e) {
     console.error('genDashboardPDF error:', e);
