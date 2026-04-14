@@ -3707,6 +3707,10 @@ async function ensurePdfBrandAssets() {
   return _pdfBrandAssets;
 }
 
+  _pdfBrandAssets.loaded = true;
+  return _pdfBrandAssets;
+}
+
 function pdfPageHeader(doc, pageTitle, subtitle, pageNo) {
   const theme = pdfV2Theme();
   const assets = _pdfBrandAssets;
