@@ -1,118 +1,198 @@
-const CACHE_NAME = 'qualpack-v22-1';
-const APP_SHELL = [
-  './',
-  './index.html',
-  './manifest.json',
-  './sw.js',
-  './db.js',
-  './sync.js',
-  './pdf-v2.js',
-  './icon-192.png',
-  './icon-512.png',
-  './icon-192-maskable.png',
-  './icon-512-maskable.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-192-maskable.png',
-  './icons/icon-512-maskable.png',
-  './jspdf.umd.min.js',
-  './xlsx.full.min.js',
-  './libs/jspdf.umd.min.js',
-  './libs/xlsx.full.min.js',
-  './logo-codex.jpg',
-  './picto-codex.jpg',
-  './assets/logo-codex.jpg',
-  './assets/picto-codex.jpg',
-  './fonts.css',
-  './assets/fonts/fonts.css'
-];
+function getSupabaseHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'Prefer': 'resolution=merge-duplicates'
+  };
+}
 
-// Installation : pré-cache uniquement des fichiers locaux essentiels
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-      .catch((error) => {
-        console.error('SW install failed:', error);
-      })
-  );
-});
-
-// Activation : suppression des anciens caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
-
-// Fetch strategy
-self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  const url = new URL(request.url);
-
-  // 1) Navigation HTML : network first, fallback cache
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put('./index.html', responseClone);
-          });
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
+async function getPendingPesees() {
+  try {
+    const rows = await getAllPesees();
+    return Array.isArray(rows) ? rows.filter(r => !r.synced) : [];
+  } catch (err) {
+    console.warn('getPendingPesees IndexedDB failed, fallback localStorage:', err);
+    try {
+      const rows = JSON.parse(localStorage.getItem('qp_sessions') || '[]');
+      return Array.isArray(rows) ? rows.filter(r => !r.synced) : [];
+    } catch (e2) {
+      console.warn('getPendingPesees localStorage failed:', e2);
+      return [];
+    }
   }
+}
 
-  // 2) Assets locaux : cache first
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
+async function getPendingDetecteurs() {
+  try {
+    const rows = await getAllDetecteurs();
+    return Array.isArray(rows) ? rows.filter(r => !r.synced) : [];
+  } catch (err) {
+    console.warn('getPendingDetecteurs IndexedDB failed, fallback localStorage:', err);
+    try {
+      const rows = JSON.parse(localStorage.getItem('qp_dets') || '[]');
+      return Array.isArray(rows) ? rows.filter(r => !r.synced) : [];
+    } catch (e2) {
+      console.warn('getPendingDetecteurs localStorage failed:', e2);
+      return [];
+    }
+  }
+}
 
-        return fetch(request).then((response) => {
-          if (
-            response &&
-            response.status === 200 &&
-            request.method === 'GET'
-          ) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
+async function markPeseesSynced(ids) {
+  if (!Array.isArray(ids) || !ids.length) return;
+
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('pesees', 'readwrite');
+      const store = tx.objectStore('pesees');
+
+      ids.forEach(id => {
+        const req = store.get(id);
+        req.onsuccess = () => {
+          const rec = req.result;
+          if (rec) {
+            rec.synced = true;
+            store.put(rec);
           }
-          return response;
-        });
-      })
-    );
-    return;
+        };
+      });
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('markPeseesSynced IndexedDB failed, fallback localStorage:', err);
+    try {
+      const rows = JSON.parse(localStorage.getItem('qp_sessions') || '[]');
+      const updated = rows.map(r => ids.includes(r.id) ? { ...r, synced: true } : r);
+      localStorage.setItem('qp_sessions', JSON.stringify(updated));
+    } catch (e2) {
+      console.warn('markPeseesSynced localStorage failed:', e2);
+    }
+  }
+}
+
+async function markDetecteursSynced(ids) {
+  if (!Array.isArray(ids) || !ids.length) return;
+
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('detecteurs', 'readwrite');
+      const store = tx.objectStore('detecteurs');
+
+      ids.forEach(id => {
+        const req = store.get(id);
+        req.onsuccess = () => {
+          const rec = req.result;
+          if (rec) {
+            rec.synced = true;
+            store.put(rec);
+          }
+        };
+      });
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('markDetecteursSynced IndexedDB failed, fallback localStorage:', err);
+    try {
+      const rows = JSON.parse(localStorage.getItem('qp_dets') || '[]');
+      const updated = rows.map(r => ids.includes(r.id) ? { ...r, synced: true } : r);
+      localStorage.setItem('qp_dets', JSON.stringify(updated));
+    } catch (e2) {
+      console.warn('markDetecteursSynced localStorage failed:', e2);
+    }
+  }
+}
+
+function mapPeseeForSupabase(r) {
+  return {
+    id: r.id,
+    type: r.type || 'pesee',
+    cli: r.cli || null,
+    prod: r.prod || null,
+    of: r.of || null,
+    op: r.op || null,
+    date: r.date || null,
+    ligne: r.ligne || r.ligne_prod || null,
+    ligne_prod: r.ligne_prod || r.ligne || null,
+    qte: r.qte ?? null,
+    moy: r.moy ?? null,
+    et: r.et ?? null,
+    tu1: r.tu1 ?? 0,
+    tu2: r.tu2 ?? 0,
+    vF: r.vF || null,
+    pesees: Array.isArray(r.pesees) ? r.pesees : [],
+    synced: true
+  };
+}
+
+function mapDetecteurForSupabase(r) {
+  return {
+    id: r.id,
+    type: r.type || 'det',
+    eq: r.eq || null,
+    ligne: r.ligne || r.ligne_prod || null,
+    ligne_prod: r.ligne_prod || r.ligne || null,
+    op: r.op || null,
+    of: r.of || null,
+    date: r.date || r.now || null,
+    now: r.now || null,
+    fer: r.fer ?? null,
+    nfer: r.nfer ?? null,
+    inox: r.inox ?? null,
+    vF: r.vF || null,
+    synced: true
+  };
+}
+
+async function postBatch(url, payload) {
+  if (!Array.isArray(payload) || !payload.length) return 0;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getSupabaseHeaders(),
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`${res.status} ${txt || res.statusText}`);
   }
 
-  // 3) Ressources externes : network first, fallback cache si déjà présent
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (
-          response &&
-          response.status === 200 &&
-          request.method === 'GET'
-        ) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => caches.match(request))
-  );
-});
+  return payload.length;
+}
+
+async function syncPending(force = false) {
+  if (!navigator.onLine && !force) return 0;
+  if (!navigator.onLine) throw new Error('Connexion indisponible');
+
+  const pendingPesees = await getPendingPesees();
+  const pendingDetecteurs = await getPendingDetecteurs();
+
+  let syncedCount = 0;
+
+  if (pendingPesees.length) {
+    const payloadPesees = pendingPesees.map(mapPeseeForSupabase);
+    const countP = await postBatch(`${SUPABASE_URL}/rest/v1/pesees`, payloadPesees);
+    await markPeseesSynced(pendingPesees.map(r => r.id));
+    syncedCount += countP;
+  }
+
+  if (pendingDetecteurs.length) {
+    const payloadDetecteurs = pendingDetecteurs.map(mapDetecteurForSupabase);
+    const countD = await postBatch(`${SUPABASE_URL}/rest/v1/detecteurs`, payloadDetecteurs);
+    await markDetecteursSynced(pendingDetecteurs.map(r => r.id));
+    syncedCount += countD;
+  }
+
+  return syncedCount;
+}
+
+window.syncPending = syncPending;
