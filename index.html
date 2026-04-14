@@ -2426,35 +2426,57 @@ function goPS3() {
 
 async function saveSession() {
   if (!window._lastPesee) return;
+
   const { r, cli, op, of, now, prod, ligne_prod } = window._lastPesee;
   const ligne = (ligne_prod || document.getElementById('inp-ligne').value || '').trim();
-  const qte   = parseInt(document.getElementById('inp-qte').value) || null;
+  const qte = parseInt(document.getElementById('inp-qte').value) || null;
+
   const record = {
     id: 'pesee_' + Date.now(),
-    type: 'pesee', cli, prod: prod.nom, of, op, date: now,
-    ligne: ligne || null, ligne_prod: ligne || null, qte: qte,
-    moy: r.moy.toFixed(2), et: r.et.toFixed(2),
-    tu1: r.tu1, tu2: r.tu2, vF: r.vF, pesees: r.v, synced: false
+    type: 'pesee',
+    cli,
+    prod: prod.nom,
+    of,
+    op,
+    date: now,
+    ligne: ligne || null,
+    ligne_prod: ligne || null,
+    qte: qte,
+    moy: r.moy.toFixed(2),
+    et: r.et.toFixed(2),
+    tu1: r.tu1,
+    tu2: r.tu2,
+    vF: r.vF,
+    pesees: r.v,
+    synced: false
   };
+
   try {
     await savePesee(record);
     sessions.unshift(record);
     toast('Relevé enregistré ✓', 'ok');
-    // Sync Supabase en arrière-plan
-    syncPesee(record).then(ok => {
-      if (ok) toast('Synchronisé ✓', 'ok');
-    });
-  } catch(e) {
+  } catch (e) {
     console.error('IndexedDB saveSession error:', e);
-    // Fallback localStorage si IndexedDB échoue
+
     try {
       const stored = JSON.parse(localStorage.getItem('qp_sessions') || '[]');
       stored.unshift(record);
       localStorage.setItem('qp_sessions', JSON.stringify(stored));
       sessions.unshift(record);
       toast('Relevé enregistré (local) ✓', 'ok');
-    } catch(e2) {
+    } catch (e2) {
       toast('Erreur enregistrement', 'err');
+      return;
+    }
+  }
+
+  // Sync Supabase en arrière-plan seulement si disponible
+  if (typeof syncPesee === 'function') {
+    try {
+      const ok = await syncPesee(record);
+      if (ok) toast('Synchronisé ✓', 'ok');
+    } catch (err) {
+      console.warn('syncPesee failed:', err);
     }
   }
 }
