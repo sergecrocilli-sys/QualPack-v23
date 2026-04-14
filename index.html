@@ -2616,14 +2616,31 @@ function filterHist(f) {
   renderHist();
 }
 
+function deduplicateHistory(data, type) {
+  const seen = new Set();
+  return data.filter(item => {
+    const key = type === 'pesees'
+      ? `${item.prod || ''}_${item.of || ''}_${item.op || ''}_${item.date || item.createdAt || ''}_${item.moy || ''}`
+      : `${item.eq || ''}_${item.type || ''}_${item.op || ''}_${item.date || item.now || ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+  
 function renderHist() {
   const list = document.getElementById('hist-list');
+  if (!list) return;
+
   if (histFilter === 'pesees') {
-    if (!sessions.length) {
+    const uniqueSessions = deduplicateHistory(sessions, 'pesees');
+
+    if (!uniqueSessions.length) {
       list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚖</div>Aucun relevé de pesée enregistré</div>';
       return;
     }
-    list.innerHTML = sessions.map(s => `
+
+    list.innerHTML = uniqueSessions.map(s => `
       <div class="hist-item">
         <div>
           <div class="hi-title">${s.prod}${(s.ligne_prod || s.ligne) ? '  ·  ' + (s.ligne_prod || s.ligne) : ''}  ·  ${s.of}</div>
@@ -2632,11 +2649,14 @@ function renderHist() {
         <span class="badge ${s.vF}">${s.vF === 'ok' ? 'Conforme' : s.vF === 'warn' ? 'À vérifier' : 'Non conforme'}</span>
       </div>`).join('');
   } else {
-    if (!dets.length) {
+    const uniqueDets = deduplicateHistory(dets, 'det');
+
+    if (!uniqueDets.length) {
       list.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div>Aucun test détecteur enregistré</div>';
       return;
     }
-    list.innerHTML = dets.map(d => `
+
+    list.innerHTML = uniqueDets.map(d => `
       <div class="hist-item">
         <div>
           <div class="hi-title">${d.eq}${(d.ligne_prod || d.ligne) ? '  ·  ' + (d.ligne_prod || d.ligne) : ''}  ·  ${d.type}</div>
@@ -2646,7 +2666,6 @@ function renderHist() {
       </div>`).join('');
   }
 }
-
 
 /* ================================================================
    EXPORT EXCEL — PESÉES
