@@ -3711,24 +3711,59 @@ function pdfPageHeader(doc, pageTitle, subtitle, pageNo) {
   const theme = pdfV2Theme();
   const assets = _pdfBrandAssets;
 
-  // Fond du header
+  // Fond header
   pdfSetFill(doc, theme.white);
-  doc.rect(0, 0, 210, 42, 'F');
+  doc.rect(0, 0, 210, 30, 'F');
+
+  // Ligne fine CODEX
+  pdfSetFill(doc, theme.blue);
+  doc.rect(0, 30, 210, 1.2, 'F');
 
   // Branding gauche
-  if (pageNo === 1 && assets.logo) {
-    try {
-      doc.addImage(assets.logo, 'JPEG', 14, 8, 38, 10);
-    } catch (e) {
-      console.warn('Logo PDF non ajouté', e);
+  if (pageNo === 1) {
+    if (assets.logo) {
+      try {
+        doc.addImage(assets.logo, 'JPEG', 14, 7, 48, 16);
+      } catch (e) {
+        console.warn('Logo CODEX non ajouté', e);
+      }
     }
-  } else if (assets.picto) {
-    try {
-      doc.addImage(assets.picto, 'JPEG', 14, 6, 12, 12);
-    } catch (e) {
-      console.warn('Picto PDF non ajouté', e);
+  } else {
+    if (assets.picto) {
+      try {
+        doc.addImage(assets.picto, 'JPEG', 14, 6, 13, 13);
+      } catch (e) {
+        console.warn('Picto CODEX non ajouté', e);
+      }
     }
   }
+
+  // Titre centré
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  pdfSetText(doc, theme.navy);
+  doc.text(pageTitle || 'Rapport Qualité', 105, 18, { align: 'center' });
+
+  // Sous-titre éventuel
+  if (subtitle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    pdfSetText(doc, theme.muted);
+    doc.text(subtitle, 105, 24, { align: 'center' });
+  }
+
+  // Date du rapport en haut à droite
+  const now = new Date();
+  const reportDate = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  pdfSetText(doc, theme.muted);
+  doc.text(reportDate, 196, 10, { align: 'right' });
+}
 
   // QUALPACK (titre principal)
   doc.setFont('helvetica', 'bold');
