@@ -5086,21 +5086,16 @@ async function manualSync() {
       btn.textContent = '⏳ Synchronisation...';
     }
 
-    let count = 0;
-    try {
-      const syncFn = window.syncPending || (typeof syncPending === 'function' ? syncPending : null);
-      if (!syncFn) throw new Error('syncPending indisponible');
-      count = await syncFn(true);
-    } catch (syncErr) {
-      console.warn('syncPending error detail:', syncErr);
-      const msg = String(syncErr && syncErr.message || syncErr || '');
-      if (/fetch|network|failed/i.test(msg)) {
-        toast('Serveur inaccessible — données conservées localement', 'err');
-      } else {
-        toast('Erreur de synchronisation : ' + msg.slice(0, 60), 'err');
-      }
+    const syncFn =
+      window.syncPending ||
+      (typeof syncPending === 'function' ? syncPending : null);
+
+    if (!syncFn) {
+      toast('Synchronisation non disponible', 'err');
       return;
     }
+
+    const count = await syncFn(true);
 
     if (typeof loadFromDB === 'function') {
       await loadFromDB();
@@ -5119,7 +5114,7 @@ async function manualSync() {
     if ((count || 0) > 0) {
       toast(count + ' élément(s) synchronisé(s)', 'ok');
     } else {
-      toast('Aucune donnée en attente', '');
+      toast('Aucune donnée en attente', 'ok');
     }
 
   } catch (e) {
@@ -5132,7 +5127,6 @@ async function manualSync() {
     }
   }
 }
-
 /* ================================================================
    SERVICE WORKER
    ================================================================ */
