@@ -3764,37 +3764,7 @@ function pdfPageHeader(doc, pageTitle, subtitle, pageNo) {
   pdfSetText(doc, theme.muted);
   doc.text(reportDate, 196, 10, { align: 'right' });
 }
-
-  // QUALPACK (titre principal)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  pdfSetText(doc, theme.navy);
-  doc.text('QUALPACK', 14, 24);
-
-  // Sous-titre métier
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  pdfSetText(doc, theme.muted);
-  doc.text('Rapport de suivi qualité & traçabilité', 14, 29.5);
-
-  // Pagination à droite
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  pdfSetText(doc, theme.text);
-  doc.text(pageTitle || '', 196, 16, { align: 'right' });
-
-  // Sous-titre de page (Synthèse, Activité, etc.)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  pdfSetText(doc, theme.text);
-  doc.text(subtitle || '', 14, 38);
-
-  // Ligne de séparation
-  pdfSetDraw(doc, theme.borderStrong);
-  doc.setLineWidth(0.5);
-  doc.line(14, 40.5, 196, 40.5);
-}
-
+ 
 function pdfSectionTitle(doc, y, title) {
   const theme = pdfV2Theme();
   doc.setFont('helvetica', 'bold');
