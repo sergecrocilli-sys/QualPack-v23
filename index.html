@@ -3944,103 +3944,332 @@ function pdfDrawTopRisks(doc, y, topRisks) {
 }
 
 async function genDashboardPDF() {
-  await window._libsReady;
-  const JsPDFCtor = getJsPDFCtor();
-  if (!JsPDFCtor) { toast('Librairie PDF indisponible', 'err'); return; }
-  await ensurePdfBrandAssets();
-  const data = getDashboardExportData();
-  const theme = pdfV2Theme();
-  const doc = new JsPDFCtor({ unit:'mm', format:'a4' });
-  doc.setFont('helvetica', 'normal');
-  pdfSetText(doc, theme.text);
+  try {
+    await window._libsReady;
+    const JsPDFCtor = getJsPDFCtor();
+    if (!JsPDFCtor) {
+      toast('Librairie PDF indisponible', 'err');
+      return;
+    }
 
-  // Page 1 — synthèse
-  pdfPageHeader(doc, 'Page 1/4', 'Synthèse', 1);
-  let y = 34;
-  pdfCard(doc, 14, y, 182, 20, theme.bgSoft, theme.border, 3);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); pdfSetText(doc, theme.text);
-  doc.text('Périmètre du rapport', 18, y + 7);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-  pdfSetText(doc, theme.muted);
-  doc.text(`Période : ${data.filtersText.periode}`, 18, y + 13);
-  doc.text(`Client : ${data.filtersText.client}`, 78, y + 13);
-  doc.text(`Produit : ${data.filtersText.produit}`, 18, y + 18);
-  doc.text(`Statut : ${data.filtersText.statut}`, 78, y + 18);
-  y += 26;
+    await ensurePdfBrandAssets();
 
-  const statusColor = pdfStatusColor(data.status.level, theme);
-  pdfCard(doc, 14, y, 182, 24, theme.white, theme.border, 3);
-  pdfSetFill(doc, statusColor); doc.roundedRect(14, y, 3.2, 24, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); pdfSetText(doc, statusColor);
-  doc.text(`STATUT GLOBAL : ${data.status.chip.toUpperCase()}`, 21, y + 8);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); pdfSetText(doc, theme.text);
-  doc.text(data.status.title, 21, y + 15);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.muted);
-  doc.text(doc.splitTextToSize(data.status.subtitle, 165), 21, y + 20);
-  y += 30;
+    const data = getDashboardExportData();
+    const theme = pdfV2Theme();
+    const doc = new JsPDFCtor({ unit: 'mm', format: 'a4' });
+    doc.setFont('helvetica', 'normal');
+    pdfSetText(doc, theme.text);
 
-  const gap = 4, cardW = (182 - gap*3) / 4;
-  pdfMetricCard(doc, 14, y, cardW, 28, 'Conformité pesées', `${data.stats.pConf}%`, data.stats.pConf >= 95 ? theme.green : data.stats.pConf >= 90 ? theme.orange : theme.red, `Période précédente : ${data.stats.pPrevConf == null ? '—' : data.stats.pPrevConf + '%'}`);
-  pdfMetricCard(doc, 14 + cardW + gap, y, cardW, 28, 'Défauts TU2', data.stats.tu2, data.stats.tu2 > 0 ? theme.red : theme.green, `${data.stats.pErr} lot(s) non conformes`);
-  pdfMetricCard(doc, 14 + (cardW + gap)*2, y, cardW, 28, 'Détecteur NOK', data.stats.dErr, data.stats.dErr > 0 ? theme.red : theme.green, `Conformité détecteur : ${data.stats.dConf}%`);
-  pdfMetricCard(doc, 14 + (cardW + gap)*3, y, cardW, 28, 'Lots contrôlés', data.stats.lots, theme.blue, `${data.stats.tests} test(s) détecteur`);
-  y += 36;
+    const perimeter = getPDFV2Perimeter(data);
 
-  pdfSectionTitle(doc, y, 'Activité et conformité');
-  y += 8;
-  pdfCard(doc, 14, y, 87, 24, theme.white, theme.border, 3);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); pdfSetText(doc, theme.text);
-  doc.text('Activité', 18, y + 8);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.muted);
-  doc.text(`Lots contrôlés : ${data.stats.lots}`, 18, y + 15);
-  doc.text(`Tests détecteur : ${data.stats.tests}`, 18, y + 20);
-  doc.text(`Complétion 7 jours : ${data.stats.completion}%`, 58, y + 15);
-  doc.text(`Pesées conformes : ${data.stats.pOk}`, 58, y + 20);
+    const safeText = (value) => String(value || '—');
+    const split = (txt, w) => doc.splitTextToSize(safeText(txt), w);
 
-  pdfCard(doc, 109, y, 87, 24, theme.white, theme.border, 3);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); pdfSetText(doc, theme.text);
-  doc.text('Lecture qualité', 113, y + 8);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.muted);
-  doc.text(`TU1 : ${data.stats.tu1}`, 113, y + 15);
-  doc.text(`TU2 : ${data.stats.tu2}`, 113, y + 20);
-  doc.text(`Détecteur OK : ${data.stats.dOk}`, 151, y + 15);
-  doc.text(`Détecteur NOK : ${data.stats.dErr}`, 151, y + 20);
+    const pRows = (Array.isArray(data.p) ? data.p : []).map(r => ({
+      date: r.date || '—',
+      label: r.prod || 'Produit',
+      of: r.of || '—',
+      line: r.ligne_prod || r.ligne || '—',
+      result: r.vF === 'ok' ? 'OK' : r.vF === 'warn' ? 'À SURVEILLER' : 'NOK',
+      ok: r.vF === 'ok'
+    }));
 
-  // Page 2 — tendances
-  doc.addPage();
-  pdfPageHeader(doc, 'Page 2/4', 'Tendances', 2);
-  pdfDrawLineChart(doc, 14, 34, 182, 78, 'Évolution de la conformité pesées', data.trends.conformity, theme.green, { minValue:0, maxValue:100, suffix:'%' });
-  pdfDrawLineChart(doc, 14, 122, 182, 78, 'Évolution des TU2', data.trends.tu2, theme.red, { minValue:0, suffix:'' });
-  let y2 = 212;
-  pdfSectionTitle(doc, y2, 'Lecture rapide');
-  y2 += 8;
-  pdfCard(doc, 14, y2, 182, 28, theme.bgSoft, theme.border, 3);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.text);
-  const trendNote = [
-    `Le graphique conformité reprend les données de pesées du périmètre filtré (${data.filtersText.periode.toLowerCase()}).`,
-    `Le graphique TU2 met en évidence les journées avec défaut(s) critique(s) TU2.`,
-    `Ce rapport peut être présenté à un auditeur ou à la direction comme synthèse documentaire.`
-  ];
-  doc.text(trendNote, 18, y2 + 8);
+    const dRows = (Array.isArray(data.d) ? data.d : []).map(r => ({
+      date: r.date || r.now || '—',
+      label: r.eq || 'Détecteur',
+      of: r.of || '—',
+      line: r.ligne_prod || r.ligne || '—',
+      result: r.vF === 'ok' ? 'OK' : 'NOK',
+      ok: r.vF === 'ok'
+    }));
 
-  // Page 3 — alertes
-  doc.addPage();
-  pdfPageHeader(doc, 'Page 3/4', 'Alertes', 3);
-  let y3 = 34;
-  y3 = pdfDrawAlertTable(doc, y3, data.alerts);
+    const reportDate = new Date().toLocaleDateString('fr-FR') + ' ' + new Date().toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-  // Page 4 — annexe / top risques
-  doc.addPage();
-  pdfPageHeader(doc, 'Page 4/4', 'Annexe', 4);
-  let y4 = 34;
-  y4 = pdfDrawTopRisks(doc, y4, data.topRisks);
-  y4 += 6;
-  pdfCard(doc, 14, y4, 182, 20, theme.white, theme.border, 3);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); pdfSetText(doc, theme.text);
-  doc.text(`Document généré automatiquement par QualPack.`, 18, y4 + 8);
-  doc.text(`Usage recommandé : support revue qualité, audit interne, présentation direction.`, 18, y4 + 14);
+    function drawFooter(pageNo) {
+      pdfSetDraw(doc, theme.borderStrong || theme.border);
+      doc.setLineWidth(0.35);
+      doc.line(14, 284, 196, 284);
 
-  doc.save('qualpack_dashboard_v81_rapport.pdf');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      pdfSetText(doc, theme.muted);
+      doc.text('Document généré automatiquement par QualPack', 14, 289);
+      doc.text(`Page ${pageNo}/3`, 196, 289, { align: 'right' });
+    }
+
+    function drawMetricCard(x, y, w, h, title, value, accent, subtitle) {
+      pdfCard(doc, x, y, w, h, theme.white, theme.border, 3);
+      pdfSetFill(doc, accent);
+      doc.roundedRect(x, y, 2.8, h, 2, 2, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      pdfSetText(doc, theme.muted);
+      doc.text(title, x + 6, y + 7);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      pdfSetText(doc, accent);
+      doc.text(String(value), x + 6, y + 16);
+
+      if (subtitle) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        pdfSetText(doc, theme.muted);
+        const lines = split(subtitle, w - 10);
+        doc.text(lines.slice(0, 2), x + 6, y + 23);
+      }
+    }
+
+    function drawSimpleTableTitle(y, title) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      pdfSetText(doc, theme.navy);
+      doc.text(title, 14, y);
+    }
+
+    function drawRowsTable(y, title, rows, emptyText) {
+      drawSimpleTableTitle(y, title);
+      y += 5;
+
+      const cols = [
+        { key: 'date', x: 14, w: 28, label: 'Date' },
+        { key: 'label', x: 42, w: 78, label: 'Produit / Équipement' },
+        { key: 'of', x: 120, w: 24, label: 'N° OF' },
+        { key: 'line', x: 144, w: 24, label: 'Ligne' },
+        { key: 'result', x: 168, w: 28, label: 'Résultat' }
+      ];
+
+      pdfCard(doc, 14, y, 182, 10, theme.bgSoft, theme.border, 2);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.3);
+      pdfSetText(doc, theme.text);
+      cols.forEach(c => doc.text(c.label, c.x + 1.5, y + 6.2));
+      y += 12;
+
+      if (!rows.length) {
+        pdfCard(doc, 14, y, 182, 10, theme.white, theme.border, 2);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        pdfSetText(doc, theme.muted);
+        doc.text(emptyText, 18, y + 6.2);
+        return y + 14;
+      }
+
+      rows.forEach(row => {
+        const lineSets = {
+          date: split(row.date, 24),
+          label: split(row.label, 72),
+          of: split(row.of, 18),
+          line: split(row.line, 18),
+          result: [row.result]
+        };
+
+        const maxLines = Math.max(
+          lineSets.date.length,
+          lineSets.label.length,
+          lineSets.of.length,
+          lineSets.line.length,
+          lineSets.result.length
+        );
+
+        const rowH = Math.max(10, 4 + maxLines * 4.2);
+
+        if (y + rowH > 278) {
+          doc.addPage();
+          pdfPageHeader(doc, 'Activité & traçabilité', '', 2);
+          y = 38;
+
+          pdfCard(doc, 14, y, 182, 10, theme.bgSoft, theme.border, 2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.3);
+          pdfSetText(doc, theme.text);
+          cols.forEach(c => doc.text(c.label, c.x + 1.5, y + 6.2));
+          y += 12;
+        }
+
+        pdfCard(doc, 14, y, 182, rowH, theme.white, theme.border, 2);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        pdfSetText(doc, theme.text);
+
+        doc.text(lineSets.date, 15.5, y + 5.2);
+        doc.text(lineSets.label, 43.5, y + 5.2);
+        doc.text(lineSets.of, 121.5, y + 5.2);
+        doc.text(lineSets.line, 145.5, y + 5.2);
+
+        const chipColor = row.ok ? theme.green : theme.red;
+        pdfSetFill(doc, chipColor);
+        doc.roundedRect(170, y + 2, 22, 6.5, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.2);
+        doc.setTextColor(255, 255, 255);
+        doc.text(row.result, 181, y + 6.3, { align: 'center' });
+        pdfSetText(doc, theme.text);
+
+        y += rowH + 3;
+      });
+
+      return y;
+    }
+
+    /* =========================
+       PAGE 1 — SYNTHÈSE
+    ========================= */
+    pdfPageHeader(doc, 'Rapport Qualité Premium', 'Synthèse', 1);
+
+    // Rappel visuel application QualPack sur page 1
+    if (_pdfBrandAssets.appIcon) {
+      try {
+        doc.addImage(_pdfBrandAssets.appIcon, 'PNG', 168, 36, 18, 18);
+      } catch (e) {
+        console.warn('Icône app PDF non ajoutée', e);
+      }
+    }
+
+    let y = 38;
+
+    pdfCard(doc, 14, y, 182, 18, theme.bgSoft, theme.border, 3);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    pdfSetText(doc, theme.text);
+    doc.text('Périmètre du rapport', 18, y + 7);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    pdfSetText(doc, theme.muted);
+    doc.text(`Période analysée : ${perimeter.periodTitle}`, 18, y + 14);
+    doc.text(`Client : ${perimeter.client}`, 90, y + 14);
+
+    y += 26;
+
+    pdfSectionTitle(doc, y, 'PESÉES');
+    y += 6;
+
+    drawMetricCard(14, y, 56, 28, 'Lots contrôlés', data.stats.lots, theme.blue, `${data.stats.pOk} conforme(s)`);
+    drawMetricCard(77, y, 56, 28, 'Conformité globale', `${data.stats.pConf}%`, data.stats.pConf >= 95 ? theme.green : data.stats.pConf >= 90 ? theme.orange : theme.red, `${data.stats.pErr} NC`);
+    drawMetricCard(140, y, 56, 28, 'Taux de complétion', `${data.stats.completion}%`, theme.blue, 'Sur la période');
+
+    y += 38;
+
+    pdfSectionTitle(doc, y, 'DÉTECTEUR');
+    y += 6;
+
+    drawMetricCard(14, y, 56, 28, 'Tests réalisés', data.stats.tests, theme.sky, `${data.stats.dOk} OK`);
+    drawMetricCard(77, y, 56, 28, 'Conformité globale', `${data.stats.dConf}%`, data.stats.dConf >= 95 ? theme.green : data.stats.dConf >= 90 ? theme.orange : theme.red, `${data.stats.dErr} NOK`);
+    drawMetricCard(140, y, 56, 28, 'Taux de complétion', `${data.stats.completion}%`, theme.sky, 'Sur la période');
+
+    y += 40;
+
+    pdfSectionTitle(doc, y, 'Point de vigilance');
+    y += 6;
+
+    pdfCard(doc, 14, y, 182, 22, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+
+    let summaryMsg = 'Aucune non-conformité détectée sur la période.';
+    if (data.stats.dErr > 0) {
+      summaryMsg = `${data.stats.dErr} test(s) détecteur non conforme(s) détecté(s) sur la période.`;
+    } else if (data.stats.pErr > 0) {
+      summaryMsg = `${data.stats.pErr} lot(s) pesées non conforme(s) détecté(s) sur la période.`;
+    } else if (data.stats.pWarn > 0) {
+      summaryMsg = `${data.stats.pWarn} lot(s) de pesées à surveiller sur la période.`;
+    }
+
+    doc.text(split(summaryMsg, 170), 18, y + 10);
+
+    drawFooter(1);
+
+    /* =========================
+       PAGE 2 — ACTIVITÉ & TRAÇABILITÉ
+    ========================= */
+    doc.addPage();
+    pdfPageHeader(doc, 'Rapport Qualité Premium', 'Activité & traçabilité', 2);
+
+    let y2 = 38;
+    y2 = drawRowsTable(y2, 'Contrôles pesées', pRows, 'Aucun contrôle pesées sur la période.');
+    y2 += 6;
+    y2 = drawRowsTable(y2, 'Contrôles détecteur', dRows, 'Aucun contrôle détecteur sur la période.');
+
+    drawFooter(2);
+
+    /* =========================
+       PAGE 3 — ANALYSE & DÉCISION
+    ========================= */
+    doc.addPage();
+    pdfPageHeader(doc, 'Rapport Qualité Premium', 'Analyse & décision', 3);
+
+    let y3 = 38;
+
+    pdfSectionTitle(doc, y3, 'Analyse automatique');
+    y3 += 6;
+
+    pdfCard(doc, 14, y3, 182, 34, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+
+    const analysisLines = [
+      data.stats.pErr === 0 ? '• Aucun défaut critique pesées' : `• ${data.stats.pErr} défaut(s) critique(s) pesées`,
+      data.stats.dErr === 0 ? '• Détecteur maîtrisé' : `• ${data.stats.dErr} test(s) détecteur NOK`,
+      data.stats.tu1 === 0 ? '• Pas de dérive détectée' : `• ${data.stats.tu1} défaut(s) TU1 à surveiller`
+    ];
+
+    analysisLines.forEach((line, idx) => {
+      doc.text(split(line, 165), 18, y3 + 9 + (idx * 8));
+    });
+
+    y3 += 44;
+
+    pdfSectionTitle(doc, y3, 'Alertes à retenir');
+    y3 += 6;
+
+    pdfCard(doc, 14, y3, 182, 24, theme.white, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+
+    const alertMsg = (data.alerts && data.alerts.length)
+      ? `${safeText(data.alerts[0].date)} — ${safeText(data.alerts[0].type)} — ${safeText(data.alerts[0].produit)}`
+      : 'Aucune alerte majeure sur la période.';
+
+    doc.text(split(alertMsg, 165), 18, y3 + 10);
+
+    y3 += 34;
+
+    pdfSectionTitle(doc, y3, 'Recommandation');
+    y3 += 6;
+
+    pdfCard(doc, 14, y3, 182, 22, theme.bgSoft, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    pdfSetText(doc, theme.text);
+
+    let reco = 'Processus maîtrisé. Maintenir le niveau de surveillance actuel.';
+    if (data.stats.dErr > 0) {
+      reco = 'Vérifier immédiatement le détecteur concerné et sécuriser la production associée.';
+    } else if (data.stats.pErr > 0) {
+      reco = 'Analyser les causes des non-conformités pesées et renforcer le contrôle des lots concernés.';
+    } else if (data.stats.pWarn > 0) {
+      reco = 'Surveiller les dérives de pesées et prévoir une revue qualité ciblée.';
+    }
+
+    doc.text(split(reco, 168), 18, y3 + 10);
+
+    drawFooter(3);
+
+    doc.save('QualPack_Rapport_Premium.pdf');
+
+  } catch (e) {
+    console.error('genDashboardPDF error:', e);
+    toast('Erreur génération PDF', 'err');
+  }
 }
 
 function renderDashboard() {
