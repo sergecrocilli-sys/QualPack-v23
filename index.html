@@ -3773,6 +3773,41 @@ function pdfPageHeader(doc, pageTitle, subtitle, pageNo) {
     }
   }
 }
+  // Titre principal
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  pdfSetText(doc, theme.navy);
+  doc.text('Rapport qualité', 105, 14, { align: 'center' });
+
+  // Sous-titre de page
+  if (subtitle) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    pdfSetText(doc, theme.text);
+    doc.text(subtitle, 105, 23, { align: 'center' });
+  }
+
+  // Date du rapport en haut à droite
+  const now = new Date();
+  const reportDate = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  pdfSetText(doc, theme.muted);
+  doc.text(reportDate, 196, 10, { align: 'right' });
+
+  // Icône app discrète sous la date (page 1 uniquement)
+  if (pageNo === 1 && assets.appIcon) {
+    try {
+      doc.addImage(assets.appIcon, 'PNG', 182, 13, 10, 10);
+    } catch (e) {
+      console.warn('Icône app PDF non ajoutée', e);
+    }
+  }
+}
 
   // Titre centré
   doc.setFont('helvetica', 'bold');
