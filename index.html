@@ -3443,7 +3443,7 @@ function buildBlocActions(pF, dF) {
         <div class="alert-meta">${a.meta}</div>
         <div class="alert-actions">
           <button class="alert-btn" onclick="dashGoHistory('${a.go}')">${a.action}</button>
-          <button class="alert-btn secondary" onclick="generatePDFV2()">Générer Rapport PDF</button>
+          <button class="alert-btn secondary" onclick="genDashboardPDF()">Générer Rapport PDF</button>
         </div>
       </div>
     </div>`).join('') : `<div class="alert-item info"><div class="alert-svg-icon">${ICONS.check}</div><div class="alert-body"><div class="alert-title">Aucune action requise</div><div class="alert-meta">Tous les indicateurs sont sous contrôle sur la période filtrée.</div></div></div>`;
