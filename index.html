@@ -4632,14 +4632,12 @@ async function confirmImportProduits() {
     ].filter(Boolean);
     mergeStoredLineCatalogue(importedLineNames);
 
-    const lignesPayload = Array.from(new Set(importedLineNames.map(v => String(v || '').trim()).filter(Boolean))).map(nom => {
-      const explicit = _importLinesData.find(r => String(r.nom || '').trim() === nom);
-      return {
-        id: explicit?.id || ('lig_' + normalizeKey(nom).replace(/[^a-z0-9]/g,'_')),
-        nom,
-        detecteur_defaut: lineDetecteurMap[nom] || null
-      };
-    });
+   const lignesPayload = Array.from(
+  new Set(importedLineNames.map(v => String(v || '').trim()).filter(Boolean))
+).map(nom => ({
+  nom,
+  detecteur_defaut: lineDetecteurMap[nom] || null
+}));
 
     try {
       if (lignesPayload.length) {
