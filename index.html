@@ -3740,14 +3740,14 @@ function pdfPageHeader(doc, pageTitle, subtitle, pageNo) {
 
   // Titre principal
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
+  doc.setFontSize(13);
   pdfSetText(doc, theme.navy);
   doc.text('Rapport qualité', 105, 14, { align: 'center' });
 
   // Sous-titre de page
   if (subtitle) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
+    doc.setFontSize(16);
     pdfSetText(doc, theme.text);
     doc.text(subtitle, 105, 23, { align: 'center' });
   }
