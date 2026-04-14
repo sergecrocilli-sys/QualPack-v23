@@ -1,3 +1,7 @@
+/* ================================
+   CONFIG SUPABASE (robuste)
+================================ */
+
 function getSupabaseConfig() {
   const url =
     (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) ||
@@ -24,6 +28,11 @@ function getSupabaseHeaders() {
     'Prefer': 'resolution=merge-duplicates'
   };
 }
+
+/* ================================
+   LECTURE DONNÉES EN ATTENTE
+================================ */
+
 async function getPendingPesees() {
   try {
     const rows = await getAllPesees();
@@ -56,6 +65,10 @@ async function getPendingDetecteurs() {
   }
 }
 
+/* ================================
+   MARQUAGE SYNCHRONISÉ
+================================ */
+
 async function markPeseesSynced(ids) {
   if (!Array.isArray(ids) || !ids.length) return;
 
@@ -81,13 +94,13 @@ async function markPeseesSynced(ids) {
       tx.onabort = () => reject(tx.error);
     });
   } catch (err) {
-    console.warn('markPeseesSynced IndexedDB failed, fallback localStorage:', err);
+    console.warn('markPeseesSynced fallback localStorage:', err);
     try {
       const rows = JSON.parse(localStorage.getItem('qp_sessions') || '[]');
       const updated = rows.map(r => ids.includes(r.id) ? { ...r, synced: true } : r);
       localStorage.setItem('qp_sessions', JSON.stringify(updated));
     } catch (e2) {
-      console.warn('markPeseesSynced localStorage failed:', e2);
+      console.warn('localStorage markPeseesSynced failed:', e2);
     }
   }
 }
@@ -117,16 +130,20 @@ async function markDetecteursSynced(ids) {
       tx.onabort = () => reject(tx.error);
     });
   } catch (err) {
-    console.warn('markDetecteursSynced IndexedDB failed, fallback localStorage:', err);
+    console.warn('markDetecteursSynced fallback localStorage:', err);
     try {
       const rows = JSON.parse(localStorage.getItem('qp_dets') || '[]');
       const updated = rows.map(r => ids.includes(r.id) ? { ...r, synced: true } : r);
       localStorage.setItem('qp_dets', JSON.stringify(updated));
     } catch (e2) {
-      console.warn('markDetecteursSynced localStorage failed:', e2);
+      console.warn('localStorage markDetecteursSynced failed:', e2);
     }
   }
 }
+
+/* ================================
+   MAPPING SUPABASE
+================================ */
 
 function mapPeseeForSupabase(r) {
   return {
@@ -169,6 +186,10 @@ function mapDetecteurForSupabase(r) {
   };
 }
 
+/* ================================
+   ENVOI SUPABASE
+================================ */
+
 async function postBatch(url, payload) {
   if (!Array.isArray(payload) || !payload.length) return 0;
 
@@ -186,6 +207,10 @@ async function postBatch(url, payload) {
   return payload.length;
 }
 
+/* ================================
+   SYNCHRONISATION PRINCIPALE
+================================ */
+
 async function syncPending(force = false) {
   if (!navigator.onLine && !force) return 0;
   if (!navigator.onLine) throw new Error('Connexion indisponible');
@@ -194,22 +219,27 @@ async function syncPending(force = false) {
   const pendingDetecteurs = await getPendingDetecteurs();
 
   let syncedCount = 0;
+  const { url } = getSupabaseConfig();
 
   if (pendingPesees.length) {
     const payloadPesees = pendingPesees.map(mapPeseeForSupabase);
-    const countP = await postBatch(`${SUPABASE_URL}/rest/v1/pesees`, payloadPesees);
+    const countP = await postBatch(`${url}/rest/v1/pesees`, payloadPesees);
     await markPeseesSynced(pendingPesees.map(r => r.id));
     syncedCount += countP;
   }
 
   if (pendingDetecteurs.length) {
     const payloadDetecteurs = pendingDetecteurs.map(mapDetecteurForSupabase);
-    const countD = await postBatch(`${SUPABASE_URL}/rest/v1/detecteurs`, payloadDetecteurs);
+    const countD = await postBatch(`${url}/rest/v1/detecteurs`, payloadDetecteurs);
     await markDetecteursSynced(pendingDetecteurs.map(r => r.id));
     syncedCount += countD;
   }
 
   return syncedCount;
 }
+
+/* ================================
+   EXPORT GLOBAL
+================================ */
 
 window.syncPending = syncPending;
