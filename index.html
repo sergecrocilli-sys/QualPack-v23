@@ -4211,7 +4211,7 @@ async function genDashboardPDF() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     pdfSetText(doc, hasAlert ? alertColor : theme.green);
-    doc.text(hasAlert ? 'Alerte qualité' : 'Situation maîtrisée', 20, y3 + 8);
+    doc.text(hasAlert ? 'Alerte qualité' : 'Situation maîtrisée', 20, y3 + 15);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
