@@ -4781,41 +4781,63 @@ async function confirmImportProduits() {
   }
 }
 
-
-/* ── Télécharger le template Excel ── */
+/* ── Télécharger le template Excel depuis le catalogue ── */
 async function downloadTemplate() {
   await window._libsReady;
   const XLSXLib = getXLSXLib();
   if (!XLSXLib) { toast('XLSX indisponible', 'err'); return; }
-  const data = [
-    ['CLIENT', 'PRODUIT', 'QN_G', 'LIGNE_PROD', 'DETECTEUR', 'OF_PLANIFIES'],
-    ['ALPHA',  'POMME',   200,    'Ligne 1',    'Détecteur CCP 1', ''],
-    ['ALPHA',  'FRAISE',  250,    'Ligne 1',    'Détecteur CCP 1', 'OF-001, OF-002'],
-    ['BETA',   'BANANE',  300,    'Ligne 2',    'Détecteur CCP 2', ''],
-    ['OMEGA',  'POIRE',   500,    'Ligne 3',    'Détecteur fin de ligne', ''],
-  ];
-  
- async function downloadTemplate() {
-  await window._libsReady;
-  const XLSXLib = getXLSXLib();
-  if (!XLSXLib) { toast('XLSX indisponible', 'err'); return; }
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const nowStr =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
   const data = [
-    ['CLIENT', 'PRODUIT', 'QN_G', 'LIGNE_PROD', 'DETECTEUR', 'OF_PLANIFIES'],
-    ['Client A', 'Produit 1', 200, 'L1', 'MD1', 'OF001,OF002'],
-    ['Client A', 'Produit 2', 500, 'L2', 'MD2', 'OF003'],
-    ['Client B', 'Produit 3', 1000, 'L1', 'MD1', 'OF004,OF005']
+    ['DATE_HEURE', 'CLIENT', 'PRODUIT', 'QN_G', 'LIGNE_PROD', 'DETECTEUR', 'OF_PLANIFIES']
   ];
+
+  const clients = Object.keys(CATALOGUE || {}).sort((a, b) =>
+    String(a).localeCompare(String(b), 'fr', { sensitivity: 'base' })
+  );
+
+  clients.forEach(client => {
+    const produits = Array.isArray(CATALOGUE[client]) ? CATALOGUE[client] : [];
+    produits.forEach(p => {
+      data.push([
+        nowStr,
+        client || '',
+        p?.nom || '',
+        p?.qn ?? '',
+        p?.ligne_prod || '',
+        p?.detecteur || '',
+        p?.of_planifies || ''
+      ]);
+    });
+  });
+
+  if (data.length === 1) {
+    data.push([nowStr, '', '', '', '', '', '']);
+  }
 
   const wb = XLSXLib.utils.book_new();
 
   const ws = XLSXLib.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{ wch: 14 }, { wch: 18 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 24 }];
-  XLSXLib.utils.book_append_sheet(wb, ws, 'Produits');
+  ws['!cols'] = [
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 10 },
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 24 }
+  ];
+  XLSXLib.utils.book_append_sheet(wb, ws, 'IMPORT_APP');
 
   const inst = XLSXLib.utils.aoa_to_sheet([
     ['INSTRUCTIONS'],
     [''],
+    ['Colonne DATE_HEURE  : Date et heure de génération du template'],
     ['Colonne CLIENT      : Nom du client (obligatoire)'],
     ['Colonne PRODUIT     : Nom du produit (obligatoire)'],
     ['Colonne QN_G        : Poids nominal en grammes (obligatoire)'],
@@ -4823,28 +4845,44 @@ async function downloadTemplate() {
     ['Colonne DETECTEUR   : Détecteur associé à la ligne (recommandé)'],
     ['Colonne OF_PLANIFIES: N° OF séparés par des virgules (optionnel)'],
     [''],
+    ['Le contenu de la feuille IMPORT_APP est généré à partir du catalogue actuel de QualPack.'],
     ['TU1, TU2 et TNE sont calculés automatiquement selon la réglementation préemballés française.']
   ]);
-  inst['!cols'] = [{ wch: 60 }];
+  inst['!cols'] = [{ wch: 70 }];
   XLSXLib.utils.book_append_sheet(wb, inst, 'Instructions');
 
-  const lignes = XLSXLib.utils.aoa_to_sheet([
-    ['LIGNE_PROD'],
-    ['L1'],
-    ['L2'],
-    ['L3']
-  ]);
-  lignes['!cols'] = [{ wch: 18 }];
-  XLSXLib.utils.book_append_sheet(wb, lignes, 'LIGNES');
+  const lignesCatalogue = getStoredLineCatalogue();
+  const lignesData = [['LIGNE_PROD'], ...lignesCatalogue.map(l => [l])];
+  const wsLignes = XLSXLib.utils.aoa_to_sheet(
+    lignesData.length ? lignesData : [['LIGNE_PROD']]
+  );
+  wsLignes['!cols'] = [{ wch: 18 }];
+  XLSXLib.utils.book_append_sheet(wb, wsLignes, 'LIGNES');
 
-  const detecteurs = XLSXLib.utils.aoa_to_sheet([
-    ['DETECTEUR', 'LIGNE_PROD'],
-    ['MD1', 'L1'],
-    ['MD2', 'L2'],
-    ['MD3', 'L3']
-  ]);
-  detecteurs['!cols'] = [{ wch: 18 }, { wch: 18 }];
-  XLSXLib.utils.book_append_sheet(wb, detecteurs, 'DETECTEURS');
+  const detecteursCatalogue = getStoredDetecteurCatalogue();
+  const lineDetecteurMap = getLineDetecteurMap();
+
+  const detRows = [['DETECTEUR', 'LIGNE_PROD']];
+  const used = new Set();
+
+  Object.entries(lineDetecteurMap || {}).forEach(([ligne, detecteur]) => {
+    const det = String(detecteur || '').trim();
+    const lig = String(ligne || '').trim();
+    if (!det && !lig) return;
+    detRows.push([det, lig]);
+    used.add(`${det}__${lig}`);
+  });
+
+  detecteursCatalogue.forEach(det => {
+    const detName = String(det || '').trim();
+    if (!detName) return;
+    const existing = Array.from(used).some(key => key.startsWith(`${detName}__`));
+    if (!existing) detRows.push([detName, '']);
+  });
+
+  const wsDet = XLSXLib.utils.aoa_to_sheet(detRows);
+  wsDet['!cols'] = [{ wch: 24 }, { wch: 18 }];
+  XLSXLib.utils.book_append_sheet(wb, wsDet, 'DETECTEURS');
 
   XLSXLib.writeFile(wb, 'qualpack_template_produits.xlsx');
 }
