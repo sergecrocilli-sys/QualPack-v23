@@ -4204,22 +4204,22 @@ async function genDashboardPDF() {
     const hasAlert = data.stats.dErr > 0 || data.stats.pErr > 0 || data.stats.pWarn > 0;
     const alertColor = data.stats.dErr > 0 || data.stats.pErr > 0 ? theme.red : theme.orange;
 
-    pdfCard(doc, 14, y3, 182, 20, hasAlert ? [255, 245, 245] : theme.bgSoft, theme.border, 3);
-    pdfSetFill(doc, alertColor);
-    doc.roundedRect(14, y3, 3, 20, 2, 2, 'F');
+    pdfCard(doc, 14, y3, 182, 24, hasAlert ? [255, 245, 245] : theme.bgSoft, theme.border, 3);
+pdfSetFill(doc, alertColor);
+doc.roundedRect(14, y3, 3, 24, 2, 2, 'F');
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    pdfSetText(doc, hasAlert ? alertColor : theme.green);
-    doc.text(hasAlert ? 'Alerte qualité' : 'Situation maîtrisée', 20, y3 + 15);
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(11);
+pdfSetText(doc, hasAlert ? alertColor : theme.green);
+doc.text(hasAlert ? 'Alerte qualité' : 'Situation maîtrisée', 20, y3 + 7.5);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    pdfSetText(doc, theme.text);
-    const alertText = hasAlert
-      ? summaryMsg
-      : 'Aucune non-conformité critique détectée sur la période.';
-    doc.text(split(alertText, 165), 20, y3 + 8);
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(8.7);
+pdfSetText(doc, theme.text);
+const alertText = hasAlert
+  ? summaryMsg
+  : 'Aucune non-conformité critique détectée sur la période.';
+doc.text(split(alertText, 165), 20, y3 + 15.5);
 
     y3 += 28;
 
