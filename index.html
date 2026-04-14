@@ -3688,16 +3688,21 @@ async function loadImageAsDataURL(src) {
 
 async function ensurePdfBrandAssets() {
   if (_pdfBrandAssets.loaded) return _pdfBrandAssets;
+
   try {
-    const [logo, picto] = await Promise.all([
-  loadImageAsDataURL(['./logo-codex.jpg']),
-  loadImageAsDataURL(['./picto-codex.jpg'])
-]);
-    _pdfBrandAssets.logo = logo;
-    _pdfBrandAssets.picto = picto;
+    const [logo, picto, appIcon] = await Promise.all([
+      loadImageAsDataURL(['./logo-codex.jpg']),
+      loadImageAsDataURL(['./picto-codex.jpg']),
+      loadImageAsDataURL(['./icon-192.png', './icon-512.png'])
+    ]);
+
+    _pdfBrandAssets.logo = logo || null;
+    _pdfBrandAssets.picto = picto || null;
+    _pdfBrandAssets.appIcon = appIcon || null;
   } catch (e) {
     console.warn('Assets PDF branding non chargés', e);
   }
+
   _pdfBrandAssets.loaded = true;
   return _pdfBrandAssets;
 }
