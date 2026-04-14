@@ -4219,7 +4219,7 @@ async function genDashboardPDF() {
     const alertText = hasAlert
       ? summaryMsg
       : 'Aucune non-conformité critique détectée sur la période.';
-    doc.text(split(alertText, 165), 20, y3 + 15);
+    doc.text(split(alertText, 165), 20, y3 + 8);
 
     y3 += 28;
 
