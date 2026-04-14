@@ -1,12 +1,29 @@
+function getSupabaseConfig() {
+  const url =
+    (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL) ||
+    (typeof SB_URL !== 'undefined' && SB_URL) ||
+    null;
+
+  const key =
+    (typeof SUPABASE_ANON_KEY !== 'undefined' && SUPABASE_ANON_KEY) ||
+    (typeof SB_KEY !== 'undefined' && SB_KEY) ||
+    null;
+
+  if (!url) throw new Error('Supabase URL indisponible');
+  if (!key) throw new Error('Supabase key indisponible');
+
+  return { url, key };
+}
+
 function getSupabaseHeaders() {
+  const { key } = getSupabaseConfig();
   return {
     'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'apikey': key,
+    'Authorization': 'Bearer ' + key,
     'Prefer': 'resolution=merge-duplicates'
   };
 }
-
 async function getPendingPesees() {
   try {
     const rows = await getAllPesees();
