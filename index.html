@@ -4140,6 +4140,18 @@ async function genDashboardPDF() {
 
     y += 32;
 
+    pdfCard(doc, 14, y, 182, 18, theme.white, theme.border, 3);
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(8.5);
+pdfSetText(doc, theme.text);
+doc.text(
+  split('Contrôle par échantillonnage réalisé sur produits préemballés. Ce rapport permet d’identifier le lot contrôlé et de conserver une trace des mesures de pesée enregistrées.', 168),
+  18,
+  y + 10
+);
+
+y += 26;
+
     pdfSectionTitle(doc, y, 'PESÉES');
     y += 6;
 
@@ -4186,6 +4198,18 @@ async function genDashboardPDF() {
     pdfPageHeader(doc, 'Rapport qualité', 'Activité & traçabilité', 2);
 
     let y2 = 40;
+    
+    pdfCard(doc, 14, y2, 182, 18, theme.bgSoft, theme.border, 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    pdfSetText(doc, theme.text);
+    doc.text(
+      split('Les résultats présentés correspondent uniquement à l’échantillon saisi dans l’application. Ils constituent une aide au suivi interne et à la traçabilité des contrôles de poids réalisés sur le lot concerné.', 168),
+      18,
+  y2 + 10
+);
+
+y2 += 26;
     y2 = drawRowsTable(y2, 'Contrôles pesées', pRows, 'Aucun contrôle pesées sur la période.');
     y2 += 6;
     y2 = drawRowsTable(y2, 'Contrôles détecteur', dRows, 'Aucun contrôle détecteur sur la période.');
@@ -4278,6 +4302,15 @@ doc.text(split(alertText, 165), 20, y3 + 15.5);
 
     doc.text(split(reco, 168), 18, y3 + 10);
 
+    doc.setFont('helvetica', 'normal');
+doc.setFontSize(7.5);
+pdfSetText(doc, theme.muted);
+doc.text(
+  split('Document généré par QualPack. Rapport de saisie et de traçabilité des échantillons de pesée, destiné au suivi interne des contrôles préemballés.', 168),
+  14,
+  285
+);
+    
     drawFooter(3);
 
     doc.save('QualPack_Rapport_Qualite.pdf');
