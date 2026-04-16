@@ -4143,7 +4143,7 @@ async function genDashboardPDF() {
     pdfSectionTitle(doc, y, 'PESÉES');
     y += 6;
 
-    drawMetricCard(14, y, 56, 28, 'Lots contrôlés', data.stats.lots, theme.blue, `${data.stats.pOk} conforme(s)`);
+    drawMetricCard(14, y, 56, 28, 'Lots contrôlés', data.stats.lots, theme.blue, `${data.stats.pOk} échantillon(s) conforme(s)`);
     drawMetricCard(77, y, 56, 28, 'Conformité globale', `${data.stats.pConf}%`, data.stats.pConf >= 95 ? theme.green : data.stats.pConf >= 90 ? theme.orange : theme.red, `${data.stats.pErr} NC`);
     drawMetricCard(140, y, 56, 28, 'Taux de complétion', `${data.stats.completion}%`, theme.blue, 'Sur la période');
 
