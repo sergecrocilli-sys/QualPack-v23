@@ -4261,10 +4261,16 @@ async function genDashboardPDF() {
     const balanceRef = getBalanceRef();
 
     doc.text(split(`Période analysée : ${perimeter.periodTitle}`, 78), 18, y + 14);
-    doc.text(split(`Client : ${perimeter.client}`, 78), 18, y + 20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Client :', 18, y + 20);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${perimeter.client}`, 33, y + 20);
 
     if (balanceRef) {
-    doc.text(split(`Balance : ${balanceRef}`, 78), 18, y + 26);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Balance :', 18, y + 26);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${balanceRef}`, 37, y + 26);
  }
 
 doc.text(
