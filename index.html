@@ -4115,8 +4115,8 @@ async function genDashboardPDF() {
       y += 5;
 
       const cols = [
-        { key: 'date', x: 14, w: 24, label: 'Date' },
-        { key: 'label', x: 43, w: 70, label: 'Produit / Équipement' },
+        { key: 'date', x: 14, w: 30, label: 'Date' },
+        { key: 'label', x: 44, w: 64, label: 'Produit / Équipement' },
         { key: 'of', x: 126, w: 20, label: 'N° OF' },
         { key: 'line', x: 146, w: 20, label: 'Ligne' },
         { key: 'result', x: 166, w: 30, label: 'Résultat' }
@@ -4140,8 +4140,8 @@ async function genDashboardPDF() {
 
       rows.forEach(row => {
         const lineSets = {
-          date: split(row.date, 25),
-          label: split(row.label, 77),
+          date: split(row.date, 30),
+          label: split(row.label, 64),
           of: split(row.of, 16),
           line: split(row.line, 16),
           result: [row.result]
