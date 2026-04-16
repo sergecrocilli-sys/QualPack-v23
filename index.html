@@ -4140,7 +4140,7 @@ async function genDashboardPDF() {
 
       rows.forEach(row => {
         const lineSets = {
-          date: split(row.date, 30),
+          date: split(row.date, 35),
           label: split(row.label, 82),
           of: split(row.of, 16),
           line: split(row.line, 16),
