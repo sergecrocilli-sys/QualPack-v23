@@ -4214,15 +4214,9 @@ async function genDashboardPDF() {
         doc.text(split(`Période analysée : ${perimeter.periodTitle}`, 78), 18, y + 14);
     doc.text(split(`Client : ${perimeter.client}`, 78), 18, y + 20);
     doc.text(
-  [
-    "Document d’autocontrôle interne",
-    "QualPack est un outil de saisie et de traçabilité des échantillons de pesée."
-  ],
-  105,
-  y + 32,
-  { align: 'center' }
-);
-    y += 30;
+ doc.text(split(`Document d’autocontrôle interne - Outil de saisie et de traçabilité des échantillons de pesée.`, 165), 18, y + 32);
+    
+    y += 42;
 
     pdfSectionTitle(doc, y, 'PESÉES');
     y += 6;
