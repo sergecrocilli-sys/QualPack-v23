@@ -3991,7 +3991,7 @@ async function genDashboardPDF() {
       ok: r.vF === 'ok'
     }));
 
-    function drawFooter(pageNo) {
+        function drawFooter(pageNo) {
       pdfSetDraw(doc, theme.borderStrong || theme.border);
       doc.setLineWidth(0.35);
       doc.line(14, 284, 196, 284);
@@ -4000,6 +4000,11 @@ async function genDashboardPDF() {
       doc.setFontSize(8);
       pdfSetText(doc, theme.muted);
       doc.text('Document généré automatiquement par QualPack', 14, 289);
+
+      if (pageNo === 3) {
+        doc.text('La décision finale concernant le lot relève du service Qualité du site.', 105, 289, { align: 'center' });
+      }
+
       doc.text(`Page ${pageNo}/3`, 196, 289, { align: 'right' });
     }
 
