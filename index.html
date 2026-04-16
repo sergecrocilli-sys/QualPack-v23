@@ -2983,7 +2983,19 @@ async function genPDF() {
     doc.text(v, x, ly + 5);
   });
 
-  y += 46;
+  if (balanceRef) {
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(122, 143, 166);
+  doc.setFontSize(7);
+  doc.text('BALANCE', M + 6, y + 35);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 30, 40);
+  doc.setFontSize(10);
+  doc.text(balanceRef, M + 6, y + 40);
+}
+
+  y += 56;
 
   /* Seuils produit */
   doc.setFillColor(14, 45, 74);
