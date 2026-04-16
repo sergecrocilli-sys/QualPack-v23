@@ -2972,6 +2972,7 @@ async function genPDF() {
   doc.text('IDENTIFICATION', M + 6, y + 7);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
   doc.setTextColor(30, 30, 40);
+  const balanceRef = getBalanceRef();
   const id1 = [['Client', cli], ['Produit', prod.nom], ['N° OF', of], ['Opérateur', op]];
   id1.forEach(([k, v], i) => {
     const col = i % 2; const row = Math.floor(i / 2);
