@@ -1041,7 +1041,7 @@ html, body {
             <div class="card-icon blue">📋</div>
             <div>
               <div class="card-title">Identification du contrôle</div>
-              <div class="card-sub">Sélectionnez le client, produit et OF</div>
+              <div class="card-sub">Saisie et traçabilité d’un échantillon de pesée</div>
             </div>
           </div>
 
@@ -1115,7 +1115,7 @@ html, body {
           <div class="card-header">
             <div class="card-icon blue">⚖</div>
             <div>
-              <div class="card-title" id="ps2-title">20 pesées</div>
+              <div class="card-title" id="ps2-title">Pesées de l’échantillon</div>
               <div class="card-sub" id="ps2-sub">—</div>
             </div>
           </div>
@@ -1166,7 +1166,7 @@ html, body {
           <div class="card-header">
             <div class="card-icon green">📊</div>
             <div>
-              <div class="card-title">Résultats du contrôle</div>
+              <div class="card-title">Résultats de l’échantillon</div>
               <div class="card-sub" id="ps3-sub">—</div>
             </div>
           </div>
@@ -1398,8 +1398,8 @@ html, body {
     <div class="screen" id="screen-dashboard">
       <div class="dash-header v2">
         <div>
-          <div class="dash-title">Dashboard qualité</div>
-          <div class="dash-subtitle">Pilotage responsable qualité</div>
+          <div class="dash-title">Dashboard de suivi</div>
+          <div class="dash-subtitle">Suivi des saisies et des résultats</div>
         </div>
         <div class="dash-date" id="dash-date"></div>
       </div>
@@ -2448,9 +2448,9 @@ function calcStats() {
   const et  = Math.sqrt(v.reduce((a,b) => a + (b - moy) ** 2, 0) / n);
   let tu1 = 0, tu2 = 0;
   if (curProd) v.forEach(x => { if (x < curProd.tu2) tu2++; else if (x < curProd.tu1) tu1++; });
-  const vMoy = moy >= curProd.qn ? 'OK' : 'NON CONFORME';
-  const vDef = (tu2 === 0 && tu1 <= 2) ? 'OK' : 'NON CONFORME';
-  const vF   = (vMoy === 'OK' && vDef === 'OK') ? 'ok' : (tu2 > 0 ? 'err' : 'warn');
+ const vMoy = moy >= curProd.qn ? 'CONFORME' : 'NON CONFORME';
+ const vDef = (tu2 === 0 && tu1 <= 2) ? 'CONFORME' : 'NON CONFORME';
+ const vF   = (vMoy === 'CONFORME' && vDef === 'CONFORME') ? 'ok' : (tu2 > 0 ? 'err' : 'warn');
   return { v, moy, et, tu1, tu2, vMoy, vDef, vF };
 }
 
@@ -2487,10 +2487,10 @@ function goPS3() {
   document.getElementById('rc-date').textContent = now;
   const vmEl = document.getElementById('rc-vm');
   vmEl.textContent = r.vMoy;
-  vmEl.className = 'rv ' + (r.vMoy === 'OK' ? 'ok' : 'err');
+  vmEl.className = 'rv ' + (r.vMoy === 'CONFORME' ? 'ok' : 'err');
   const vdEl = document.getElementById('rc-vd');
   vdEl.textContent = r.vDef;
-  vdEl.className = 'rv ' + (r.vDef === 'OK' ? 'ok' : 'err');
+  vdEl.className = 'rv ' + (r.vDef === 'CONFORME' ? 'ok' : 'err');
 
   window._lastPesee = { r, cli, op, of, now, prod: curProd, ligne_prod: ligne || null };
 }
@@ -3392,7 +3392,7 @@ function buildStatusHero(pF, dF) {
       <span class="status-chip ${cls}">${chip}</span>
     </div>
     <div class="status-meta-grid">
-      <div class="status-meta-card"><div class="status-meta-label">Lots contrôlés</div><div class="status-meta-val">${activeLots}</div></div>
+      <div class="status-meta-card"><div class="status-meta-label">Echantillons</div><div class="status-meta-val">${activeLots}</div></div>
       <div class="status-meta-card"><div class="status-meta-label">Tests détecteur</div><div class="status-meta-val">${activeDet}</div></div>
       <div class="status-meta-card"><div class="status-meta-label">Dernière activité</div><div class="status-meta-val">${relativeFromTs(lastTs)}</div></div>
     </div>
@@ -3418,7 +3418,7 @@ function buildBlocSynthese(pF, dF, pPrev, dPrev) {
       ${kpiCard(qualityColor || 'blue', ICONS.taux, conform !== null ? conform + '%' : '—', qualityColor || '', 'Conformité pesées', confTrend)}
       ${kpiCard(tu2 > 0 ? 'red' : 'green', ICONS.tu2, tu2, tu2 > 0 ? 'red' : 'green', 'Défauts TU2', dashPeriod ? trendBadge(tu2, tu2Prev, true, '') : '')}
       ${kpiCard(detKo > 0 ? 'red' : 'green', ICONS.detector, detKo, detKo > 0 ? 'red' : 'green', 'Détecteur NOK', dashPeriod ? trendBadge(detKo, detKoPrev, true, '') : '')}
-      ${kpiCard('blue', ICONS.scale, pF.length, '', 'Lots contrôlés', lotsTrend)}
+      ${kpiCard('blue', ICONS.scale, pF.length, '', 'Echantillons', lotsTrend)}
     </div>
     <div class="dash-two-col">
       ${buildBlocActiviteMini(pF, dF, pPrev, dPrev)}
@@ -4049,7 +4049,7 @@ async function genDashboardPDF() {
       label: r.prod || 'Produit',
       of: r.of || '—',
       line: r.ligne_prod || r.ligne || '—',
-      result: r.vF === 'ok' ? 'OK' : r.vF === 'warn' ? 'À SURVEILLER' : 'NOK',
+      result: r.vF === 'ok' ? 'OK' : r.vF === 'warn' ? 'À SURVEILLER' : 'NON CONFORME',
       ok: r.vF === 'ok'
     }));
 
@@ -4058,7 +4058,7 @@ async function genDashboardPDF() {
       label: r.eq || 'Détecteur',
       of: r.of || '—',
       line: r.ligne_prod || r.ligne || '—',
-      result: r.vF === 'ok' ? 'OK' : 'NOK',
+      result: r.vF === 'ok' ? 'CONFORME' : 'NON CONFORME',
       ok: r.vF === 'ok'
     }));
 
@@ -4213,15 +4213,15 @@ async function genDashboardPDF() {
     pdfSetText(doc, theme.muted);
         doc.text(split(`Période analysée : ${perimeter.periodTitle}`, 78), 18, y + 14);
     doc.text(split(`Client : ${perimeter.client}`, 78), 18, y + 20);
-    doc.text(split(`Document d’autocontrôle interne - QualPack est un outil de saisie et de traçabilité des échantillons de pesée.`, 165), 18, y + 32);
+    doc.text(split(`Document d’autocontrôle interne - QualPack est un outil de saisie et de traçabilité des échantillons de pesée dans le cadre du suivi qualité interne.`, 165), 18, y + 32);
 
     y += 42;
 
     pdfSectionTitle(doc, y, 'PESÉES');
     y += 6;
 
-    drawMetricCard(14, y, 56, 28, 'Lots contrôlés', data.stats.lots, theme.blue, `${data.stats.pOk} échantillon(s) conforme(s)`);
-    drawMetricCard(77, y, 56, 28, 'Conformité globale', `${data.stats.pConf}%`, data.stats.pConf >= 95 ? theme.green : data.stats.pConf >= 90 ? theme.orange : theme.red, `${data.stats.pErr} NC`);
+    drawMetricCard(14, y, 56, 28, 'Echantillons', data.stats.lots, theme.blue, `${data.stats.pOk} échantillon(s) conforme(s)`);
+    drawMetricCard(77, y, 56, 28, 'Echantillons conformes', `${data.stats.pConf}%`, data.stats.pConf >= 95 ? theme.green : data.stats.pConf >= 90 ? theme.orange : theme.red, `${data.stats.pErr} NC`);
     drawMetricCard(140, y, 56, 28, 'Taux de complétion', `${data.stats.completion}%`, theme.blue, 'Sur la période');
 
     y += 38;
@@ -4230,7 +4230,7 @@ async function genDashboardPDF() {
     y += 6;
 
     drawMetricCard(14, y, 56, 28, 'Tests réalisés', data.stats.tests, theme.sky, `${data.stats.dOk} OK`);
-    drawMetricCard(77, y, 56, 28, 'Conformité globale', `${data.stats.dConf}%`, data.stats.dConf >= 95 ? theme.green : data.stats.dConf >= 90 ? theme.orange : theme.red, `${data.stats.dErr} NOK`);
+    drawMetricCard(77, y, 56, 28, 'Tests conformes', `${data.stats.dConf}%`, data.stats.dConf >= 95 ? theme.green : data.stats.dConf >= 90 ? theme.orange : theme.red, `${data.stats.dErr} NOK`);
     drawMetricCard(140, y, 56, 28, 'Taux de complétion', `${data.stats.completion}%`, theme.sky, 'Sur la période');
 
     y += 40;
