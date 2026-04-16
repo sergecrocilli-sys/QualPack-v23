@@ -4170,9 +4170,9 @@ async function genDashboardPDF() {
     if (data.stats.dErr > 0) {
       summaryMsg = `${data.stats.dErr} test(s) détecteur non conforme(s) détecté(s) sur la période.`;
     } else if (data.stats.pErr > 0) {
-      summaryMsg = `${data.stats.pErr} lot(s) pesées non conforme(s) détecté(s) sur la période.`;
+      summaryMsg = `${data.stats.pErr} échantillon(s) pesées non conforme(s) détecté(s) sur la période.`;
     } else if (data.stats.pWarn > 0) {
-      summaryMsg = `${data.stats.pWarn} lot(s) de pesées à surveiller sur la période.`;
+      summaryMsg = `${data.stats.pWarn} échantillon(s) de pesées à surveiller sur la période.`;
     }
 
     doc.text(split(summaryMsg, 168), 18, y + 10);
