@@ -2370,6 +2370,23 @@ function saveSampleSizeSetting() {
     setTimeout(() => document.getElementById('p1') && document.getElementById('p1').focus(), 150);
   }
 }
+  function getBalanceRef() {
+  return (localStorage.getItem('qp_balance_ref') || '').trim();
+}
+
+function setBalanceRef(value) {
+  localStorage.setItem('qp_balance_ref', String(value || '').trim());
+}
+
+function refreshBalanceRefUI() {
+  const inp = document.getElementById('cfg-balance-ref');
+  if (inp) inp.value = getBalanceRef();
+}
+
+function saveBalanceRefSetting() {
+  const inp = document.getElementById('cfg-balance-ref');
+  setBalanceRef(inp ? inp.value : '');
+}
 
 function goPS2() {
   showStep('pesees', 2);
