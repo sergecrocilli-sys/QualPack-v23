@@ -4137,11 +4137,11 @@ async function genDashboardPDF() {
     pdfSetText(doc, theme.text);
     doc.text('Périmètre du rapport', 18, y + 7);
 
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     pdfSetText(doc, theme.muted);
         doc.text(split(`Période analysée : ${perimeter.periodTitle}`, 78), 18, y + 14);
-    doc.text(split(`Client : ${perimeter.client}`, 78), 18, y + 20);
+    doc.text(split(`Client : ${perimeter.client}`, 150), 18, y + 20);
     doc.text(split(`Document d’autocontrôle interne - QualPack est un outil de saisie et de traçabilité des échantillons de pesée.`, 78), 18, y + 32);
 
     y += 42;
