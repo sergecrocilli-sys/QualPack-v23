@@ -4141,7 +4141,7 @@ async function genDashboardPDF() {
       rows.forEach(row => {
         const lineSets = {
           date: split(row.date, 25),
-          label: split(row.label, 82),
+          label: split(row.label, 77),
           of: split(row.of, 16),
           line: split(row.line, 16),
           result: [row.result]
@@ -4176,9 +4176,9 @@ async function genDashboardPDF() {
         pdfSetText(doc, theme.text);
 
         doc.text(lineSets.date, 15.2, y + 4.8);
-        doc.text(lineSets.label, 39.2, y + 4.8);
-        doc.text(lineSets.of, 127.2, y + 4.8);
-        doc.text(lineSets.line, 147.2, y + 4.8);
+        doc.text(lineSets.label, 44.2, y + 4.8);
+        doc.text(lineSets.of, 132.2, y + 4.8);
+        doc.text(lineSets.line, 152.2, y + 4.8);
 
         const chipColor = row.ok ? theme.green : theme.red;
         pdfSetFill(doc, chipColor);
