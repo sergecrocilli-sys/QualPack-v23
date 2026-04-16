@@ -2392,7 +2392,7 @@ function goPS3() {
   const ligne = document.getElementById('inp-ligne').value.trim();
   showStep('pesees', 3);
 
-  document.getElementById('ps3-sub').textContent = curProd.nom + (ligne ? '  ·  ' + ligne : '') + '  ·  ' + of;
+ document.getElementById('ps3-sub').textContent = curProd.nom + (ligne ? '  ·  ' + ligne : '') + '  ·  N° OF ' + of;
 
   const vb = document.getElementById('verdict-pesee');
   vb.className = 'verdict ' + r.vF;
