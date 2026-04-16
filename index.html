@@ -1579,6 +1579,21 @@ html, body {
         </div>
       </div>
 
+      <div class="admin-row">
+  <div style="flex:1;margin-right:12px">
+    <div class="admin-row-label">Balance de référence</div>
+    <div class="admin-row-sub">Référence ou type de balance repris dans les rapports PDF</div>
+  </div>
+  <input
+    type="text"
+    id="cfg-balance-ref"
+    placeholder="ex : Mettler Toledo PBA430"
+    oninput="saveBalanceRefSetting()"
+    style="min-width:220px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;color:var(--text-primary);font-size:13px;font-family:var(--font-ui)"
+    autocomplete="off"
+  />
+</div>
+
       <!-- Infos app -->
       <div class="admin-section">
         <div class="admin-section-title">
