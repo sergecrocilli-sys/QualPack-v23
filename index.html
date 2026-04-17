@@ -2263,19 +2263,28 @@ function onProduit() {
   const pid = document.getElementById('sel-produit').value;
   curProd   = (CATALOGUE[c] || []).find(p => p.id === pid) || null;
   const strip = document.getElementById('prod-info');
+
   if (curProd) {
     document.getElementById('ip-qn').textContent  = curProd.qn  + ' g';
     document.getElementById('ip-tu1').textContent = curProd.tu1 + ' g';
     document.getElementById('ip-tu2').textContent = curProd.tu2 + ' g';
     document.getElementById('ip-tne').textContent = curProd.tne + ' g';
+    document.getElementById('ip-tare').textContent =
+      curProd.tare_fixe_g != null && curProd.tare_fixe_g !== ''
+        ? String(curProd.tare_fixe_g).replace('.', ',') + ' g'
+        : '—';
+
     strip.classList.add('show');
+
     /* Ligne de production */
     const ligne = curProd.ligne_prod || '';
     populateLineSelect('inp-ligne', ligne);
+
     /* OF planifiés hybride */
     const ofs = (curProd.of_planifies || '').split(',').map(s => s.trim()).filter(Boolean);
     const selOf  = document.getElementById('sel-of');
     const inpOf  = document.getElementById('inp-of');
+
     if (ofs.length) {
       selOf.innerHTML = "<option value=''>— Sélectionner un OF —</option>";
       ofs.forEach(o => { selOf.innerHTML += `<option value="${o}">${o}</option>`; });
@@ -2292,21 +2301,10 @@ function onProduit() {
     populateLineSelect('inp-ligne', '');
     document.getElementById('sel-of').style.display = 'none';
     document.getElementById('inp-of').style.display = 'block';
+    const tareEl = document.getElementById('ip-tare');
+    if (tareEl) tareEl.textContent = '—';
   }
-  chk1();
-}
 
-function onOfSelect() {
-  const val   = document.getElementById('sel-of').value;
-  const inpOf = document.getElementById('inp-of');
-  if (val === '__autre__') {
-    inpOf.style.display = 'block';
-    inpOf.value = '';
-    inpOf.focus();
-  } else {
-    inpOf.style.display = 'none';
-    inpOf.value = val;
-  }
   chk1();
 }
 
