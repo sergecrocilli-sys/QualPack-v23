@@ -4710,7 +4710,6 @@ async function loadCatalogueFromSupabase() {
       clients.forEach(c => { nextCatalogue[c.nom] = []; });
 
       prods.forEach(p => {
-        const s = calcSeuils(parseFloat(p.qn));
         const prod = {
           id: p.id,
           nom: p.nom,
@@ -4718,10 +4717,11 @@ async function loadCatalogueFromSupabase() {
           tu1: s.tu1,
           tu2: s.tu2,
           tne: s.tne,
+          tare_fixe_g: p.tare_fixe_g ?? null,
           ligne_prod: p.ligne_prod || '',
           detecteur: p.detecteur || '',
           of_planifies: p.of_planifies || ''
-        };
+      };
 
         const cli = clients.find(c => c.id === p.client_id);
         if (cli) {
