@@ -245,6 +245,34 @@ async function syncPending(force = false) {
 }
 
 /* ================================
+   SYNCHRO UNITAIRE
+================================ */
+
+async function syncPesee(record) {
+  if (!navigator.onLine) return false;
+  if (!record || !record.id) return false;
+
+  const { url } = getSupabaseConfig();
+  const payload = [mapPeseeForSupabase(record)];
+
+  await postBatch(`${url}/rest/v1/pesees`, payload);
+  await markPeseesSynced([record.id]);
+  return true;
+}
+
+async function syncDetecteur(record) {
+  if (!navigator.onLine) return false;
+  if (!record || !record.id) return false;
+
+  const { url } = getSupabaseConfig();
+  const payload = [mapDetecteurForSupabase(record)];
+
+  await postBatch(`${url}/rest/v1/detecteurs`, payload);
+  await markDetecteursSynced([record.id]);
+  return true;
+}
+
+/* ================================
    EXPORT GLOBAL
 ================================ */
 
