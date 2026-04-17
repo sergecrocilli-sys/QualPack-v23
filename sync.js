@@ -277,3 +277,5 @@ async function syncDetecteur(record) {
 ================================ */
 
 window.syncPending = syncPending;
+window.syncPesee = syncPesee;
+window.syncDetecteur = syncDetecteur;
