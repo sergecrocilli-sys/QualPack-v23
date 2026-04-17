@@ -167,6 +167,7 @@ function mapPeseeForSupabase(r) {
     tu2: r.tu2 ?? 0,
     vMoy: r.vMoy || null,
     vDef: r.vDef || null,
+    vf: r.vF || null,
     vF: r.vF || null,
     pesees: Array.isArray(r.pesees) ? r.pesees : [],
     synced: true
