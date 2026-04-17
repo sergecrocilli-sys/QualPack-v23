@@ -3043,9 +3043,6 @@ async function genPDF() {
   ['Tare fixe', (prod.tare_fixe_g != null && prod.tare_fixe_g !== '') ? String(prod.tare_fixe_g).replace('.', ',') + ' g' : '—']
 ];
 
-doc.setFillColor(14, 45, 74);
-doc.roundedRect(M, y, 174, 28, 3, 3, 'F');
-
 seuils.forEach(([k, v], i) => {
   const col = i % 3;
   const row = Math.floor(i / 3);
