@@ -4891,14 +4891,23 @@ async function importProduitsExcel(input) {
       toast('Colonnes requises : CLIENT, PRODUIT, QN_G', 'err'); return;
     }
 
-    const preview = normalized.map(r => ({
-      client:      String(r.CLIENT   || '').trim(),
-      nom:         String(r.PRODUIT  || '').trim(),
-      qn:          parseFloat(r.QN_G || r.QN || 0),
-      ligne_prod:  String(r.LIGNE_PROD || r.LIGNE || '').trim(),
-      detecteur:   String(r.DETECTEUR || r.EQUIPEMENT || '').trim(),
-      of_planifies: String(r.OF_PLANIFIES || r.OF || '').trim()
-    })).filter(r => r.client && r.nom && r.qn > 0);
+    const preview = normalized.map(r => {
+  const tareFixeRaw = r.TARE_FIXE_G ?? r.TARE_FIXE ?? '';
+  const tareFixe =
+    tareFixeRaw === '' || tareFixeRaw == null
+      ? null
+      : Number(String(tareFixeRaw).replace(',', '.'));
+
+  return {
+    client:       String(r.CLIENT || '').trim(),
+    nom:          String(r.PRODUIT || '').trim(),
+    qn:           parseFloat(r.QN_G || r.QN || 0),
+    tare_fixe_g:  Number.isFinite(tareFixe) && tareFixe >= 0 ? tareFixe : null,
+    ligne_prod:   String(r.LIGNE_PROD || r.LIGNE || '').trim(),
+    detecteur:    String(r.DETECTEUR || r.EQUIPEMENT || '').trim(),
+    of_planifies: String(r.OF_PLANIFIES || r.OF || '').trim()
+  };
+}).filter(r => r.client && r.nom && r.qn > 0);
 
     const lignesRows = readSheet('LIGNES', 3);
     const explicitLines = lignesRows.map((r, idx) => ({
@@ -5129,10 +5138,11 @@ async function confirmImportProduits() {
         client_id,
         nom: r.nom,
         qn: r.qn,
+        tare_fixe_g: Number.isFinite(r.tare_fixe_g) ? r.tare_fixe_g : null,
         ligne_prod: r.ligne_prod || null,
         detecteur: r.detecteur || lineDetecteurMap[r.ligne_prod] || null,
         of_planifies: r.of_planifies || null
-      };
+    };
 
       if (targetId) {
         let resPatch = await fetch(`${SB_URL}/rest/v1/produits?id=eq.${encodeURIComponent(targetId)}`, {
