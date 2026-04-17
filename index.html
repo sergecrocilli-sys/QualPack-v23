@@ -2547,24 +2547,30 @@ async function saveSession() {
   const qte = parseInt(document.getElementById('inp-qte').value) || null;
 
   const record = {
-    id: 'pesee_' + Date.now(),
-    type: 'pesee',
-    cli,
-    prod: prod.nom,
-    of,
-    op,
-    date: now,
-    ligne: ligne || null,
-    ligne_prod: ligne || null,
-    qte: qte,
-    moy: r.moy.toFixed(2),
-    et: r.et.toFixed(2),
-    tu1: r.tu1,
-    tu2: r.tu2,
-    vF: r.vF,
-    pesees: r.v,
-    synced: false
-  };
+  id: 'pesee_' + Date.now(),
+  type: 'pesee',
+  cli,
+  prod: prod.nom,
+  of,
+  op,
+  date: now,
+  ligne: ligne || null,
+  ligne_prod: ligne || null,
+  qte: qte,
+  qn: qn,
+  tne: tne,
+  tu1_limite: tu1_limite,
+  tare_fixe_g: tare_fixe_g,
+  moy: r.moy.toFixed(2),
+  et: r.et.toFixed(2),
+  tu1: r.tu1,
+  tu2: r.tu2,
+  vMoy: r.vMoy,
+  vDef: r.vDef,
+  vF: r.vF,
+  pesees: r.v,
+  synced: false
+};
 
   try {
     await savePesee(record);
