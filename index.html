@@ -4708,26 +4708,27 @@ async function loadCatalogueFromSupabase() {
       const nextCatalogue = {};
       clients.forEach(c => { nextCatalogue[c.nom] = []; });
 
-      prods.forEach(p => {
-        const prod = {
-          id: p.id,
-          nom: p.nom,
-          qn: s.qn,
-          tu1: s.tu1,
-          tu2: s.tu2,
-          tne: s.tne,
-          tare_fixe_g: p.tare_fixe_g ?? null,
-          ligne_prod: p.ligne_prod || '',
-          detecteur: p.detecteur || '',
-          of_planifies: p.of_planifies || ''
-      };
+     prods.forEach(p => {
+  const s = calcSeuils(parseFloat(p.qn));
+  const prod = {
+    id: p.id,
+    nom: p.nom,
+    qn: s.qn,
+    tu1: s.tu1,
+    tu2: s.tu2,
+    tne: s.tne,
+    tare_fixe_g: p.tare_fixe_g ?? null,
+    ligne_prod: p.ligne_prod || '',
+    detecteur: p.detecteur || '',
+    of_planifies: p.of_planifies || ''
+  };
 
-        const cli = clients.find(c => c.id === p.client_id);
-        if (cli) {
-          if (!nextCatalogue[cli.nom]) nextCatalogue[cli.nom] = [];
-          nextCatalogue[cli.nom].push(prod);
-        }
-      });
+  const cli = clients.find(c => c.id === p.client_id);
+  if (cli) {
+    if (!nextCatalogue[cli.nom]) nextCatalogue[cli.nom] = [];
+    nextCatalogue[cli.nom].push(prod);
+  }
+});
 
       if (Object.keys(nextCatalogue).length) {
         CATALOGUE = sanitizeCatalogue(nextCatalogue);
