@@ -3092,8 +3092,7 @@ const stats = [
   y += 4;
 
   /* Pesées */
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(74, 98, 120);
-  const nbPes = Array.isArray(r.v) ? r.v.length : 0;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(74, 98, 120); 
   doc.text('DÉTAIL DES ' + nbPes + ' PESÉES', M, y); y += 5;
   doc.setDrawColor(200, 210, 225); doc.line(M, y, 210 - M, y); y += 5;
 
