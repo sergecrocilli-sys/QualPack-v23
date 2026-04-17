@@ -3033,15 +3033,16 @@ async function genPDF() {
   y += 56;
 
   /* Seuils produit */
-  doc.setFillColor(14, 45, 74);
-  doc.roundedRect(M, y, 174, 16, 3, 3, 'F');
-  const seuils = [
+const seuils = [
   ['Qn (nominal)', prod.qn + ' g'],
   ['TU1 (T1)', prod.tu1 + ' g'],
   ['TU2 (T2)', prod.tu2 + ' g'],
   ['TNE', prod.tne + ' g'],
   ['Tare fixe', (prod.tare_fixe_g != null && prod.tare_fixe_g !== '') ? String(prod.tare_fixe_g).replace('.', ',') + ' g' : '—']
 ];
+
+doc.setFillColor(14, 45, 74);
+doc.roundedRect(M, y, 174, 28, 3, 3, 'F');
 
 seuils.forEach(([k, v], i) => {
   const col = i % 3;
