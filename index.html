@@ -2524,7 +2524,19 @@ function goPS3() {
   vdEl.textContent = r.vDef;
   vdEl.className = 'rv ' + (r.vDef === 'CONFORME' ? 'ok' : 'err');
 
-  window._lastPesee = { r, cli, op, of, now, prod: curProd, ligne_prod: ligne || null };
+  window._lastPesee = {
+  r,
+  cli,
+  op,
+  of,
+  now,
+  prod: curProd,
+  ligne_prod: ligne || null,
+  tare_fixe_g: curProd?.tare_fixe_g ?? null,
+  qn: curProd?.qn ?? null,
+  tne: curProd?.tne ?? null,
+  tu1_limite: curProd?.tu1 ?? null
+};
 }
 
 async function saveSession() {
