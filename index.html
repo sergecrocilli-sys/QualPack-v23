@@ -2307,6 +2307,23 @@ function onProduit() {
 
   chk1();
 }
+  function onOfSelect() {
+  const val   = document.getElementById('sel-of').value;
+  const inpOf = document.getElementById('inp-of');
+
+  if (val === '__autre__') {
+    inpOf.style.display = 'block';
+    inpOf.value = '';
+    inpOf.focus();
+  } else {
+    inpOf.style.display = 'none';
+    inpOf.value = val;
+  }
+
+  chk1();
+}
+
+window.onOfSelect = onOfSelect;
 
 function chk1() {
   const ofVal = document.getElementById('sel-of').style.display !== 'none'
