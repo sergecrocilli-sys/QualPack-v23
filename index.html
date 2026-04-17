@@ -3078,14 +3078,27 @@ const stats = [
   ['Verdict moyenne', r.vMoy, r.vMoy === 'OK' ? 'ok' : 'err'],
   ['Verdict défectueux', r.vDef, r.vDef === 'OK' ? 'ok' : (r.vDef === 'À SURVEILLER' ? 'warn' : 'err')],
 ];
-  stats.forEach(([k, v, ok]) => {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(50, 60, 70);
-    doc.text(k, M + 2, y);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(ok ? 15 : 163, ok ? 110 : 45, ok ? 86 : 45);
-    doc.text(v, 210 - M, y, { align:'right' });
-    y += 7;
-  });
+  stats.forEach(([k, v, status]) => {
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(50, 60, 70);
+  doc.text(k, M + 2, y);
+
+  doc.setFont('helvetica', 'bold');
+
+  if (status === 'ok') {
+    doc.setTextColor(15, 110, 86);
+  } else if (status === 'warn') {
+    doc.setTextColor(186, 117, 23);
+  } else if (status === 'err') {
+    doc.setTextColor(163, 45, 45);
+  } else {
+    doc.setTextColor(50, 60, 70);
+  }
+
+  doc.text(v, 210 - M, y, { align:'right' });
+  y += 7;
+});
 
   y += 4;
 
