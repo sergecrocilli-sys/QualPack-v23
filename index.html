@@ -3119,7 +3119,11 @@ const stats = [
   doc.roundedRect(M, y, 5, 18, 2, 2, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
   doc.setTextColor(vc[6], vc[7], vc[8]);
-  const vt = r.vF === 'ok' ? 'LOT RÉPUTÉ BON' : r.vF === 'warn' ? 'LOT NON CONFORME — VÉRIFICATION REQUISE' : 'LOT NON CONFORME — DÉFAUT TU2 CRITIQUE';
+  const vt = r.vF === 'ok'
+  ? 'ÉCHANTILLON CONFORME'
+  : r.vF === 'warn'
+    ? 'ÉCHANTILLON À SURVEILLER'
+    : 'ÉCHANTILLON NON CONFORME';
   doc.text(vt, M + 12, y + 11);
 
   y += 28;
