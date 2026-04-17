@@ -3071,12 +3071,12 @@ y += 36;
   const nbPes = Array.isArray(r.v) ? r.v.length : 0;
 
 const stats = [
-  ['Moyenne calculée', r.moy.toFixed(2) + ' g', r.moy >= prod.qn],
-  ['Écart-type', r.et.toFixed(2) + ' g', true],
-  ['Défauts TU1 (max 2)', r.tu1 + ' / ' + nbPes, r.tu1 <= 2],
-  ['Défauts TU2 (max 0)', r.tu2 + ' / ' + nbPes, r.tu2 === 0],
-  ['Verdict moyenne', r.vMoy, r.vMoy === 'OK'],
-  ['Verdict défectueux', r.vDef, r.vDef === 'OK'],
+  ['Moyenne calculée', r.moy.toFixed(2) + ' g', 'neutral'],
+  ['Écart-type', r.et.toFixed(2) + ' g', 'neutral'],
+  ['Défauts TU1 (max 2)', r.tu1 + ' / ' + nbPes, r.tu1 <= 2 ? 'ok' : 'err'],
+  ['Défauts TU2 (max 0)', r.tu2 + ' / ' + nbPes, r.tu2 === 0 ? 'ok' : 'err'],
+  ['Verdict moyenne', r.vMoy, r.vMoy === 'OK' ? 'ok' : 'err'],
+  ['Verdict défectueux', r.vDef, r.vDef === 'OK' ? 'ok' : (r.vDef === 'À SURVEILLER' ? 'warn' : 'err')],
 ];
   stats.forEach(([k, v, ok]) => {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(50, 60, 70);
